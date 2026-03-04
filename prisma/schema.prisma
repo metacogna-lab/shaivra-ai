@@ -1,0 +1,217 @@
+// Shaivra Intelligence Suite - Database Schema
+// PostgreSQL database for persistent storage
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User roles for role-based access control
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+// Project status
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+// Report types
+enum ReportType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+  STRATEGIC
+}
+
+// Investigation status
+enum InvestigationStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  PAUSED
+}
+
+// User model - Authentication and user management
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  role          Role     @default(ANALYST)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  projects      Project[]
+  searchHistory SearchHistory[]
+  clips         Clip[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// Project model - Intelligence projects
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  settings    Json          @default("{}")
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relationships
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("projects")
+}
+
+// Search History - Track all search queries
+model SearchHistory {
+  id        String   @id @default(uuid())
+  query     String
+  results   Json     // Store search results as JSON
+  source    String?  // Search source (google, filtered, etc.)
+  metadata  Json?    // Additional metadata (trace IDs, etc.)
+  createdAt DateTime @default(now())
+
+  // Relationships
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("search_history")
+}
+
+// Clip model - Saved intelligence clips
+model Clip {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  source    String?
+  tags      String[] @default([])
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("clips")
+}
+
+// Report model - Generated intelligence reports
+model Report {
+  id          String     @id @default(uuid())
+  type        ReportType
+  title       String?
+  data        Json       // Report content and analysis
+  summary     String?    @db.Text
+  metadata    Json?
+  generatedAt DateTime   @default(now())
+
+  @@index([type])
+  @@index([generatedAt])
+  @@map("reports")
+}
+
+// Investigation model - Autonomous bot investigations
+model Investigation {
+  id          String              @id @default(uuid())
+  target      String
+  goal        String              @db.Text
+  status      InvestigationStatus @default(RUNNING)
+  certainty   Int                 @default(0) // Percentage 0-100
+  logs        Json                @default("[]") // Array of log entries
+  entities    Json                @default("[]") // Discovered entities
+  citations   Json?               // Source citations
+  metadata    Json?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  completedAt DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("investigations")
+}
+
+// Audit Log - Security and compliance logging
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String   // Action performed (login, search, create_project, etc.)
+  resource  String   // Resource affected (user, project, clip, etc.)
+  details   Json?    // Additional details about the action
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  // Relationships
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Organization Profile - OSINT target organizations
+model OrganizationProfile {
+  id          String   @id @default(uuid())
+  name        String
+  objective   String   @db.Text
+  profile     Json     // Organization profile data
+  entities    Json?    // Related entities
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([createdAt])
+  @@map("organization_profiles")
+}
+
+// RSS Feed - Monitored RSS feeds
+model RSSFeed {
+  id          String   @id @default(uuid())
+  url         String   @unique
+  title       String?
+  description String?
+  lastFetched DateTime?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([active])
+  @@map("rss_feeds")
+}
+
+// Trend - Identified intelligence trends
+model Trend {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  dataPoints  Json     // Time series data
+  velocity    Float?   // Rate of change
+  severity    String?  // LOW, MEDIUM, HIGH, CRITICAL
+  metadata    Json?
+  detectedAt  DateTime @default(now())
+
+  @@index([severity])
+  @@index([detectedAt])
+  @@map("trends")
+}

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shaivra | Intelligence for the Public Good</title>
+    
+    <!-- Social Media Preview -->
+    <meta property="og:title" content="Shaivra | Strategic Intelligence Workspace" />
+    <meta property="og:description" content="Shaivra is a strategic intelligence workspace designed for OSINT, threat analysis, and campaign simulation, providing authoritative insights for the public good." />
+    <!-- Replace the URL below with the actual URL of your logo image (Logo + Shaivra text) -->
+    <meta property="og:image" content="https://your-domain.com/shaivra-logo-preview.png" />
+    <meta property="og:url" content="https://ais-dev-mzjh7ck4quq4b4enkjzqct-222013614833.asia-east1.run.app" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Shaivra | Strategic Intelligence Workspace" />
+    <meta name="twitter:description" content="Shaivra is a strategic intelligence workspace designed for OSINT, threat analysis, and campaign simulation, providing authoritative insights for the public good." />
+    <meta name="twitter:image" content="https://your-domain.com/shaivra-logo-preview.png" />
+    
+    <!-- Fonts: Inter, Space Grotesk, JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              // Industry Aligned Theme (Command Amber / Dark Slate)
+              charcoal: '#0C0D0F', // Slightly lighter than pure black for visibility
+              'neutral-850': '#121417', // Surface
+              
+              // Frame/Structure
+              spacegray: '#27272A', 
+              'glass-border': '#3F3F46',
+              
+              // New Highlights
+              'cyber-cyan': '#F59E0B',   // RENAMED TO AMBER/GOLD (kept var name to minimize refactor risk, represents Action)
+              'electric-blue': '#0EA5E9', // Secondary Data Link Color (Sky Blue)
+              'purpose-gold': '#F59E0B',  // Primary Brand Color
+              'alert-crimson': '#EF4444', // Red
+              'tactical-green': '#10B981', // Success/Safe
+              
+              // Text
+              'text-primary': '#FAFAFA',
+              'text-secondary': '#94A3B8', // Slate-400
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Space Grotesk', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            maxWidth: {
+              '8xl': '1440px',
+            },
+            spacing: {
+              '18': '4.5rem',
+              '22': '5.5rem',
+            },
+            animation: {
+              'pulse-slow': 'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'float': 'float 8s ease-in-out infinite',
+              'spin-slow': 'spin 12s linear infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-10px)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      :root {
+        --bg: #050505;
+        --surface: #0a0a0a;
+        --accent: #22d3ee; /* cyan-400 */
+        --accent-glow: rgba(34, 211, 238, 0.3);
+        --font-main: 'Inter', sans-serif;
+        --font-display: 'Space Grotesk', sans-serif;
+      }
+
+      body {
+        background-color: var(--bg);
+        color: #f5f5f5;
+        font-family: var(--font-main);
+        overflow-x: hidden;
+      }
+      
+      /* Custom Scrollbar - Minimal */
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 0px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent);
+      }
+      
+      /* Cyberpunk Softening Edges */
+      .cyber-card {
+        background: var(--surface);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .cyber-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .cyber-card:hover::before {
+        opacity: 1;
+      }
+
+      .cyber-card:hover {
+        border-color: rgba(34, 211, 238, 0.2);
+        box-shadow: 0 0 20px var(--accent-glow);
+      }
+
+      .glass-panel {
+        background: rgba(5, 5, 5, 0.8);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      /* Typography Refinement */
+      h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-display);
+        letter-spacing: -0.03em;
+      }
+      p {
+        letter-spacing: -0.01em;
+      }
+
+      @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+
+      .animate-marquee {
+        display: flex;
+        animation: marquee 30s linear infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "framer-motion": "https://esm.sh/framer-motion@^12.34.3",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "lucide-react": "https://esm.sh/lucide-react@^0.575.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.42.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

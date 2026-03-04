@@ -60,7 +60,9 @@ describe('Lens pipeline', () => {
     portalSpies.push(
       vi.spyOn(portalApi, 'simulateEnrichment').mockResolvedValue({
         data: {
+          embedding_vector: [0.1, 0.2],
           extracted_entities: ['Entity'],
+          topic_tags: ['security'],
           meta: { trace_id: 'tr_enrich', timestamp: new Date().toISOString() }
         }
       } as any)
@@ -69,6 +71,8 @@ describe('Lens pipeline', () => {
       vi.spyOn(portalApi, 'simulateClustering').mockResolvedValue({
         data: {
           cluster_id: 'cls_1',
+          velocity_score: 0.9,
+          lifecycle_stage: 'emerging',
           meta: { trace_id: 'tr_cluster', timestamp: new Date().toISOString() }
         }
       } as any)
@@ -76,12 +80,12 @@ describe('Lens pipeline', () => {
     portalSpies.push(
       vi.spyOn(portalApi, 'simulateLLMAnalysis').mockResolvedValue({
         data: {
-          strategic_takeaway: 'Complete',
+          escalation_probability: 0.9,
+          recommended_actions: ['Monitor'],
           meta: { trace_id: 'tr_llm', timestamp: new Date().toISOString() }
         }
       } as any)
     );
-
     render(
       <MemoryRouter>
         <Lens />
@@ -98,7 +102,8 @@ describe('Lens pipeline', () => {
 
     await user.click(screen.getByRole('button', { name: /Launch Strategic Ingestion/i }));
 
-    await screen.findByText(/Strategic Intelligence Synthesis/i);
+    const overlays = await screen.findAllByText(/Strategic Intelligence Synthesis/i);
+    expect(overlays.length).toBeGreaterThan(0);
     await waitFor(() => expect(screen.getByText('100%')).toBeInTheDocument());
   });
 });

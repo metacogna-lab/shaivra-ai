@@ -1086,14 +1086,14 @@ app.get("/api/rss", (req, res) => {
 
 // --- Vite Middleware ---
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV === "production") {
+    app.use(express.static("dist"));
+  } else if (process.env.NODE_ENV !== "test") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    app.use(express.static("dist"));
   }
 
   // 24. General Agent Investigation Endpoint
@@ -1232,9 +1232,11 @@ app.post("/api/auth/logout", authenticate, async (req, res) => {
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (process.env.NODE_ENV !== "test") {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 if (process.env.NODE_ENV !== "test") {

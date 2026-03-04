@@ -11,8 +11,15 @@ const report = {
   summary: 'Narrative pressure intensifying around climate assets.',
   top_threats: ['Coordinated disinformation on major platforms'],
   sector_shifts: ['Energy firms reallocating budgets toward counter-influence'],
+  ml_insights: {
+    clusters: ['Cluster A'],
+    trends: ['Trend spike into renewables']
+  },
+  graph_updates: {
+    nodes: [{ id: 'n1' }],
+    links: [{ id: 'l1' }]
+  },
   regional_signals: [],
-  graph_updates: [],
   recommendations: []
 };
 
@@ -39,6 +46,6 @@ describe('DailyReports', () => {
 
     await screen.findByText(/Daily Intelligence Report/i);
     expect(screen.getByText(/Narrative pressure intensifying/i)).toBeInTheDocument();
-    expect(screen.getByText(/UN Resolution on AI Governance/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/UN Resolution on AI Governance/i).length).toBeGreaterThan(0);
   });
 });

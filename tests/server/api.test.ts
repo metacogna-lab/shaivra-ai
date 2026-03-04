@@ -43,6 +43,7 @@ let app: Express;
 
 beforeAll(async () => {
   const mod = await import('../../server');
+  await mod.startServer();
   app = mod.app;
 });
 
@@ -231,7 +232,7 @@ describe('POST /api/auth/login', () => {
 
     const response = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'analyst@shaivra.ai', password: 'bad' });
+      .send({ email: 'analyst@shaivra.ai', password: 'BadPassw0rd!' });
 
     expect(response.status).toBe(401);
     expect(response.body.error).toMatch(/Authentication failed/i);

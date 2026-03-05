@@ -137,6 +137,35 @@ describe('GET /api/osint/shodan', () => {
   });
 });
 
+describe('GET /api/osint/fingerprint', () => {
+  it('fails when API key missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const response = await request(app).get('/api/osint/fingerprint').query({ url: 'https://example.com' });
+    expect(response.status).toBe(500);
+    expect(response.body.error).toMatch(/GEMINI_API_KEY/i);
+  });
+
+  it('returns inferred fingerprint when configured', async () => {
+    process.env.GEMINI_API_KEY = 'fingerprint-key';
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        stack: ['Next.js', 'Node.js'],
+        architecture: 'Edge',
+        api_endpoints: ['/api/search'],
+        cloud_assets: ['Cloudflare'],
+        vulnerabilities: ['Leaky robots.txt']
+      })
+    });
+
+    const response = await request(app).get('/api/osint/fingerprint').query({ url: 'https://example.com' });
+    expect(response.status).toBe(200);
+    expect(response.body.stack).toContain('Next.js');
+    expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
+      contents: expect.stringContaining('https://example.com')
+    }));
+  });
+});
+
 describe('POST /api/forge/analyze', () => {
   it('fails when API key missing', async () => {
     delete process.env.GEMINI_API_KEY;

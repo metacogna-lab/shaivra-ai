@@ -26,3 +26,7 @@ The project uses Vitest + Testing Library. Run the current suite with:
 ```bash
 bun run test
 ```
+
+## Documentation
+
+- [OSINT Capability Review](docs/osint.md) – analysis of the current open-source intelligence stack, gaps, and recommended tooling.

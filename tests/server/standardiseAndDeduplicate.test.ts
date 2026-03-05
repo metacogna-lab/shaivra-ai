@@ -207,6 +207,7 @@ describe('standardiseAndDeduplicate', () => {
           value: 'CEO',
           confidence: 0.9,
           source: { tool: 'reddit', timestamp: now, raw: {} },
+          context: {},
         },
       ],
     });

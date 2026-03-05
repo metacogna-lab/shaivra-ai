@@ -3,7 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "bin": {
+    "shaivra": "cli/index.ts",
+    "shaivra-cli": "cli/index.ts"
+  },
   "scripts": {
+    "cli": "bun run cli/index.ts",
+    "shaivra-cli": "bun run cli/index.ts",
+    "test:permutations": "bun run cli/test-query-permutations.ts",
+    "test:e2e-websearch": "bun run cli/test-e2e-websearch-agent.ts",
     "dev": "tsx server.ts",
     "build": "vite build && npx prisma generate",
     "start": "node --loader tsx server.ts",
@@ -31,6 +39,8 @@
     "@supabase/supabase-js": "^2.98.0",
     "@types/d3": "^7.4.3",
     "bull": "^4.16.5",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
     "cookie-parser": "^1.4.7",
     "csurf": "^1.11.0",
     "d3": "^7.9.0",
@@ -39,6 +49,7 @@
     "express-rate-limit": "^8.2.1",
     "framer-motion": "^12.34.3",
     "helmet": "^8.1.0",
+    "inquirer": "^13.3.0",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",
     "langsmith": "^0.5.7",

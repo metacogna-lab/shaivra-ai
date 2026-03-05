@@ -6,9 +6,33 @@ import { validateBody, validateQuery } from '../middleware/validate';
 import { searchSchema, reportSchema, orgProfileSchema } from '../validation/schemas';
 import { auditLogRepository } from '../repositories/auditLogRepository';
 import { investigationRepository } from '../repositories/investigationRepository';
+import { intelligenceOrchestrator } from '../services/intelligenceOrchestrator';
 import crypto from 'crypto';
 
 const router = Router();
+
+/**
+ * POST /intelligence/gather - Gather intelligence for a target (orchestrator + standardise & deduplicate).
+ * Optional auth: use authenticate for protected deployments; CLI may call without auth on localhost.
+ */
+router.post('/gather', aiLimiter, async (req: Request, res: Response) => {
+  const { target, entityType, mode, tools } = req.body || {};
+  if (!target || typeof target !== 'string') {
+    return res.status(400).json({ error: 'target (string) required' });
+  }
+  try {
+    const result = await intelligenceOrchestrator.gatherIntelligence({
+      target: target.trim(),
+      entityType,
+      mode: mode || 'fast',
+      tools,
+    });
+    res.json(result);
+  } catch (error: any) {
+    console.error('[Intelligence Gather]', error);
+    res.status(500).json({ error: error.message || 'Gather failed' });
+  }
+});
 
 /**
  * POST /intelligence/search - Web search with Gemini grounding

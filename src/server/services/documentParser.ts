@@ -1,5 +1,8 @@
-import pdfParse from 'pdf-parse';
+import { createRequire } from 'node:module';
 import mammoth from 'mammoth';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string; numpages: number }>;
 import { GoogleGenAI } from '@google/genai';
 import { callTrackedGemini, ensureTransactionId, LineageInfo } from './llmClient';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';

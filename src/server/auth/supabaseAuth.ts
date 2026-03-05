@@ -1,27 +1,29 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const jwtSecret = process.env.JWT_SECRET || '';
+const supabaseUrl = process.env.SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY?.trim() || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || '';
+const jwtSecret = process.env.JWT_SECRET?.trim() || 'dev-secret-change-in-production';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️ Supabase credentials not configured. Authentication will fail.');
+const hasSupabase = Boolean(supabaseUrl && supabaseAnonKey);
+
+let _supabase: SupabaseClient | null = null;
+let _supabaseAdmin: SupabaseClient | null = null;
+
+/** Supabase client when SUPABASE_URL and SUPABASE_ANON_KEY are set; otherwise null. */
+function getSupabase(): SupabaseClient | null {
+  if (!hasSupabase) return null;
+  if (!_supabase) _supabase = createClient(supabaseUrl, supabaseAnonKey);
+  return _supabase;
 }
 
-if (!jwtSecret) {
-  console.warn('⚠️ JWT_SECRET not configured. Using insecure default for development.');
+/** Supabase admin client when credentials are set; otherwise null. */
+function getSupabaseAdmin(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseServiceKey) return null;
+  if (!_supabaseAdmin) _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  return _supabaseAdmin;
 }
-
-// Client-side Supabase client (uses anon key, respects RLS)
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-
-// Server-side admin client (bypasses RLS, use with caution)
-export const supabaseAdmin: SupabaseClient = createClient(
-  supabaseUrl,
-  supabaseServiceKey
-);
 
 export interface JWTPayload {
   userId: string;
@@ -32,113 +34,85 @@ export interface JWTPayload {
 }
 
 /**
- * Generate a JWT token for an authenticated user
+ * Generate a JWT token for an authenticated user.
  */
 export function generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-  return jwt.sign(
-    payload,
-    jwtSecret || 'dev-secret-change-in-production',
-    { expiresIn: '7d' }
-  );
+  return jwt.sign(payload, jwtSecret, { expiresIn: '7d' });
 }
 
 /**
- * Verify and decode a JWT token
+ * Verify and decode a JWT token.
  */
 export function verifyToken(token: string): JWTPayload {
   try {
-    return jwt.verify(
-      token,
-      jwtSecret || 'dev-secret-change-in-production'
-    ) as JWTPayload;
-  } catch (error) {
+    return jwt.verify(token, jwtSecret) as JWTPayload;
+  } catch {
     throw new Error('Invalid or expired token');
   }
 }
 
+const AUTH_NOT_CONFIGURED = 'Authentication not configured (set SUPABASE_URL and SUPABASE_ANON_KEY).';
+
 /**
- * Authenticate user with Supabase
+ * Authenticate user (Supabase when configured).
  */
 export async function authenticateUser(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const client = getSupabase();
+  if (!client) throw new Error(AUTH_NOT_CONFIGURED);
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error('Authentication failed');
 
-  if (!data.user) {
-    throw new Error('Authentication failed');
-  }
-
-  // Get user role from user metadata or database
   const role = (data.user.user_metadata?.role as 'admin' | 'analyst' | 'viewer') || 'analyst';
-
   return {
-    user: {
-      id: data.user.id,
-      email: data.user.email!,
-      role,
-    },
+    user: { id: data.user.id, email: data.user.email!, role },
     session: data.session,
   };
 }
 
 /**
- * Register a new user with Supabase
+ * Register a new user (Supabase when configured).
  */
 export async function registerUser(
   email: string,
   password: string,
   role: 'admin' | 'analyst' | 'viewer' = 'analyst'
 ) {
-  const { data, error } = await supabase.auth.signUp({
+  const client = getSupabase();
+  if (!client) throw new Error(AUTH_NOT_CONFIGURED);
+
+  const { data, error } = await client.auth.signUp({
     email,
     password,
-    options: {
-      data: {
-        role,
-      },
-    },
+    options: { data: { role } },
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data.user) {
-    throw new Error('Registration failed');
-  }
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error('Registration failed');
 
   return {
-    user: {
-      id: data.user.id,
-      email: data.user.email!,
-      role,
-    },
+    user: { id: data.user.id, email: data.user.email!, role },
     session: data.session,
   };
 }
 
 /**
- * Sign out user
+ * Sign out user (Supabase when configured).
  */
 export async function signOutUser() {
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    throw new Error(error.message);
-  }
+  const client = getSupabase();
+  if (!client) throw new Error(AUTH_NOT_CONFIGURED);
+  const { error } = await client.auth.signOut();
+  if (error) throw new Error(error.message);
 }
 
 /**
- * Refresh session
+ * Refresh session (Supabase when configured).
  */
 export async function refreshSession() {
-  const { data, error } = await supabase.auth.refreshSession();
-  if (error) {
-    throw new Error(error.message);
-  }
+  const client = getSupabase();
+  if (!client) throw new Error(AUTH_NOT_CONFIGURED);
+  const { data, error } = await client.auth.refreshSession();
+  if (error) throw new Error(error.message);
   return data.session;
 }

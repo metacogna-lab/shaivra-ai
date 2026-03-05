@@ -1,10 +1,14 @@
-import helmet, { type IHelmetContentSecurityPolicyDirectives } from 'helmet';
+import helmet from 'helmet';
+
+type CSPDirectives = Record<string, string[]> & {
+  upgradeInsecureRequests?: string[];
+};
 
 /**
  * Security headers configuration using Helmet
  * Protects against common web vulnerabilities
  */
-const contentSecurityDirectives: IHelmetContentSecurityPolicyDirectives = {
+const contentSecurityDirectives: CSPDirectives = {
   defaultSrc: ["'self'"],
   scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for Vite dev
   styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],

@@ -1,11 +1,12 @@
 import { prisma } from '../db/prismaClient';
+import { Prisma } from '@prisma/client';
 
 export interface CreateClipInput {
   title: string;
   content: string;
   source?: string;
   tags?: string[];
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
   userId: string;
 }
 
@@ -14,7 +15,7 @@ export interface UpdateClipInput {
   content?: string;
   source?: string;
   tags?: string[];
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 /**
@@ -58,7 +59,7 @@ export const clipRepository = {
         content: data.content,
         source: data.source,
         tags: data.tags || [],
-        metadata: data.metadata,
+        metadata: data.metadata ?? Prisma.JsonNull,
         userId: data.userId,
       },
     });
@@ -68,9 +69,13 @@ export const clipRepository = {
    * Update clip
    */
   async update(id: string, data: UpdateClipInput) {
+    const { metadata, ...rest } = data;
     return prisma.clip.update({
       where: { id },
-      data,
+      data: {
+        ...rest,
+        ...(metadata !== undefined ? { metadata } : {}),
+      },
     });
   },
 

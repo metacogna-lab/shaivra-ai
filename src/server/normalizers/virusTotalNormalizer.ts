@@ -3,7 +3,7 @@
  */
 
 import { AbstractNormalizer } from './base';
-import type { IntelligenceEvent, EntityReference, Observation } from '../../types/intelligence';
+import type { IntelligenceEvent, EntityReference, Observation } from '../../contracts';
 import type { VirusTotalResponse } from '../integrations/virustotal';
 
 export class VirusTotalNormalizer extends AbstractNormalizer<VirusTotalResponse> {

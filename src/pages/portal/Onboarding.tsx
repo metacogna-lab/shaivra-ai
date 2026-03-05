@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Shield, ArrowRight, Loader2, CheckCircle, Lock, Server } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { OnboardingRequest } from '../../portalTypes';
+import { OnboardingRequest } from '../../contracts';
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();

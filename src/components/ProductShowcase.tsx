@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { PRODUCTS } from '../constants';
 import { LensIcon, ForgeIcon, ShieldIcon, NodeIcon, ChevronIcon } from './ui/Icons';
-import { ViewType } from '../types';
+import { ViewType } from '../contracts';
 
 interface ProductShowcaseProps {
   onNavigate: (view: ViewType) => void;

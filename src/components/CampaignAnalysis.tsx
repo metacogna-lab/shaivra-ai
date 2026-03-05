@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileText, Activity, AlertTriangle, CheckCircle, BrainCircuit, Network, ArrowRight, Loader2, Search, Database } from 'lucide-react';
 import { portalApi } from '../services/portalApi';
-import { CampaignAnalysisResult } from '../portalTypes';
+import { CampaignAnalysisResult } from '../contracts';
 
 const CampaignAnalysis: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [file, setFile] = useState<File | null>(null);

@@ -8,9 +8,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     css: true,
-    environmentMatchGlobs: [
-      ['tests/server/**', 'node']
-    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html']

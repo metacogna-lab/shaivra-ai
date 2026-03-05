@@ -1,4 +1,12 @@
-import { Product, NavItem, GraphData, GraphNode, GraphEdge, EntityType, Campaign } from './types';
+import {
+  Product,
+  NavItem,
+  GraphData,
+  GraphNode,
+  GraphEdge,
+  EntityType,
+  Campaign,
+} from './contracts';
 
 // ... (existing exports)
 
@@ -59,7 +67,7 @@ export const STRATEGIC_PILLARS = [
   }
 ];
 
-export const DATA_SOURCES: import('./types').DataSource[] = [
+export const DATA_SOURCES: import('./contracts').DataSource[] = [
   { id: 'src_1', name: 'Global News Feed', type: 'public', icon: 'globe', description: 'Real-time aggregation of 50,000+ news outlets.' },
   { id: 'src_2', name: 'Dark Web Leak', type: 'dark', icon: 'lock', description: 'Indexed credentials and documents from Tor hidden services.' },
   { id: 'src_3', name: 'Corporate Registry', type: 'public', icon: 'building', description: 'Global business ownership and filing records.' },
@@ -68,7 +76,7 @@ export const DATA_SOURCES: import('./types').DataSource[] = [
   { id: 'src_6', name: 'Threat Intel Feeds', type: 'restricted', icon: 'shield', description: 'Proprietary IOCs and malware signatures.' }
 ];
 
-export const GRAPH_QUERIES: import('./types').GraphQuery[] = [
+export const GRAPH_QUERIES: import('./contracts').GraphQuery[] = [
   { id: 'q_1', label: 'Map Disinformation Networks', description: 'Identify coordinated inauthentic behavior and narrative propagation.', focus: 'network' },
   { id: 'q_2', label: 'Trace Financial Flows', description: 'Follow the money through shell companies and crypto mixers.', focus: 'finance' },
   { id: 'q_3', label: 'Infrastructure Analysis', description: 'Correlate domains, IPs, and SSL certs to find C2 servers.', focus: 'infra' }

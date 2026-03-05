@@ -1,10 +1,11 @@
 import { prisma } from '../db/prismaClient';
+import { Prisma } from '@prisma/client';
 
 export interface CreateAuditLogInput {
   userId: string;
   action: string;
   resource: string;
-  details?: Record<string, unknown>;
+  details?: Prisma.InputJsonValue;
   ipAddress?: string;
   userAgent?: string;
 }
@@ -22,7 +23,7 @@ export const auditLogRepository = {
         userId: data.userId,
         action: data.action,
         resource: data.resource,
-        details: data.details,
+        details: data.details ?? Prisma.JsonNull,
         ipAddress: data.ipAddress,
         userAgent: data.userAgent,
       },

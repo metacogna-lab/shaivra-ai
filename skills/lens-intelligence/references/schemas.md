@@ -1,6 +1,6 @@
 # Lens schemas and canonical mapping
 
-Skill-layer objects used by Lens and how they map to the app canonical schema in `src/types/intelligence.ts`.
+Skill-layer objects used by Lens and how they map to the app canonical schema in `src/contracts/intelligence.ts`.
 
 ## Intelligence Object (skill-layer)
 

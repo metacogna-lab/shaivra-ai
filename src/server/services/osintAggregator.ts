@@ -2,7 +2,7 @@ import { searchShodan, getShodanHost } from '../integrations/shodan';
 import { getAlienVaultGeneral, getAlienVaultMalware, type IndicatorType } from '../integrations/alienvault';
 import { getVirusTotalReport, type VirusTotalResourceType } from '../integrations/virustotal';
 import { normalizerRegistry } from '../normalizers';
-import type { IntelligenceEvent } from '../../types/intelligence';
+import type { IntelligenceEvent } from '../../contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface OSINTResult {

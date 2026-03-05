@@ -20,7 +20,7 @@ import ShieldMonitor from './src/components/ShieldMonitor';
 import CampaignAnalysis from './src/components/CampaignAnalysis';
 import AgentNetworkMonitor from './src/components/AgentNetworkMonitor';
 import Projects from './src/components/Projects';
-import { ViewType } from './src/types';
+import { ViewType } from './src/contracts';
 
 // Portal Imports
 import PortalLayout from './src/components/portal/PortalLayout';

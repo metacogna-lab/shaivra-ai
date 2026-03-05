@@ -121,8 +121,7 @@ src/
 │   ├── portalApi.ts             # API client
 │   ├── osintAggregator.ts       # OSINT integration
 │   └── ...
-├── types.ts                     # Landing page types
-├── portalTypes.ts               # Portal types
+├── contracts/                   # Canonical contracts (intelligence, portal, graph)
 └── constants.ts                 # Application constants
 ```
 

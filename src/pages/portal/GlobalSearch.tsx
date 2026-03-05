@@ -7,7 +7,7 @@ import {
   Lock, Eye, EyeOff, Paperclip
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { GlobalGraphNode } from '../../portalTypes';
+import { GlobalGraphNode } from '../../contracts';
 
 const GlobalSearch: React.FC = () => {
   const [query, setQuery] = useState('');

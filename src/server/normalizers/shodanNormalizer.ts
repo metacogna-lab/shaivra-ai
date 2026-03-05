@@ -7,7 +7,7 @@
  */
 
 import { AbstractNormalizer } from './base';
-import type { IntelligenceEvent, EntityReference, Observation } from '../../types/intelligence';
+import type { IntelligenceEvent, EntityReference, Observation } from '../../contracts';
 import type { ShodanSearchResponse, ShodanResult } from '../integrations/shodan';
 
 export class ShodanNormalizer extends AbstractNormalizer<ShodanSearchResponse> {

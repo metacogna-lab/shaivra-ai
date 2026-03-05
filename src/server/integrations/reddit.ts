@@ -1,4 +1,4 @@
-import Snoowrap, { Submission, Subreddit, Comment } from 'snoowrap';
+import Snoowrap, { Submission, Subreddit, Comment, RedditUser } from 'snoowrap';
 import redis from '../db/redisClient';
 
 const CACHE_TTL = 1800; // 30 minutes
@@ -86,11 +86,12 @@ export async function searchReddit(
     const results = await client.search({
       query,
       sort,
-      time: 'all',
-      limit: Math.min(limit, 100) // Reddit API max is 100
+      time: 'all'
     });
 
-    const posts: RedditPost[] = results.map((submission: Submission) => ({
+    const limitedResults = results.slice(0, Math.min(limit, 100));
+
+    const posts: RedditPost[] = limitedResults.map((submission: Submission) => ({
       id: submission.id,
       title: submission.title,
       author: submission.author.name,
@@ -166,11 +167,11 @@ export async function searchSubreddit(
     let submissions: Submission[];
 
     if (query) {
-      submissions = await subreddit.search({
+      const searchResults = await subreddit.search({
         query,
-        sort: 'relevance',
-        limit: Math.min(limit, 100)
+        sort: 'relevance'
       });
+      submissions = searchResults.slice(0, Math.min(limit, 100));
     } else {
       switch (sort) {
         case 'hot':
@@ -243,8 +244,8 @@ export async function getSubredditInfo(subredditName: string): Promise<any> {
   }
 
   try {
-    const client = getRedditClient();
-    const subreddit = await client.getSubreddit(subredditName).fetch();
+    const client = getRedditClient() as any;
+    const subreddit = await client.getSubreddit(subredditName).fetch() as Subreddit;
 
     const info = {
       name: subreddit.display_name,
@@ -286,8 +287,8 @@ export async function getRedditUser(username: string): Promise<any> {
   }
 
   try {
-    const client = getRedditClient();
-    const user = await client.getUser(username).fetch();
+    const client = getRedditClient() as any;
+    const user = await client.getUser(username).fetch() as RedditUser;
 
     const profile = {
       name: user.name,
@@ -297,7 +298,7 @@ export async function getRedditUser(username: string): Promise<any> {
       comment_karma: user.comment_karma,
       is_gold: user.is_gold,
       is_mod: user.is_mod,
-      has_verified_email: user.has_verified_email,
+      has_verified_email: (user as any).has_verified_email ?? user.has_verified_mail ?? false,
       icon_img: user.icon_img
     };
 
@@ -350,7 +351,7 @@ function getMockRedditData(query: string): RedditSearchResult {
  */
 export async function checkRedditHealth(): Promise<{ connected: boolean; error?: string }> {
   try {
-    const client = getRedditClient();
+    const client = getRedditClient() as any;
     // Simple test query
     await client.getSubreddit('test').fetch();
     return { connected: true };

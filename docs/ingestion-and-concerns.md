@@ -63,10 +63,10 @@ Core data-quality chain for ingested data from public APIs: **Ingest → Normali
 Existing contracts ensure ingested data from public OSINT APIs flows into a single canonical form.
 
 **Canonical output (all tool data ends here):**  
-- `src/types/intelligence.ts`: `EntityReference`, `Observation`, `Relationship`, `IntelligenceEvent`; type guards `isIntelligenceEvent`, `isEntityReference`. All OSINT tool output must be normalized to `IntelligenceEvent` before entering the knowledge graph or downstream steps. Bridge rules (confidence 0–1, UUIDs, source attribution) apply.
+- `src/contracts/intelligence.ts`: `EntityReference`, `Observation`, `Relationship`, `IntelligenceEvent`; runtime validators `isIntelligenceEvent`, `isEntityReference`. All OSINT tool output must be normalized to `IntelligenceEvent` before entering the knowledge graph or downstream steps. Bridge rules (confidence 0–1, UUIDs, source attribution) apply.
 
 **Pipeline step contracts (handoff between stages):**  
-- `src/portalTypes.ts`: `IngestionEvent` (raw_id, source_type, payload, checksum, trace_id); `NormalizedEvent` (event_id, canonical_type, normalized_text, source_ref); `LensNormalizationResult`, `LensEnrichmentResult`, `LensClusteringResult`, `LensLLMReport`, `LensAuditEntry`; plus types for extracted entities, strategic correlation, graph update, report. These define the shape at each step so Lens and PipelineMonitor can pass data smoothly when mocks are replaced by real endpoints.
+- `src/contracts/portal.ts`: `IngestionEvent` (raw_id, source_type, payload, checksum, trace_id); `NormalizedEvent` (event_id, canonical_type, normalized_text, source_ref); `LensNormalizationResult`, `LensEnrichmentResult`, `LensClusteringResult`, `LensLLMReport`, `LensAuditEntry`; plus types for extracted entities, strategic correlation, graph update, report. These define the shape at each step so Lens and PipelineMonitor can pass data smoothly when mocks are replaced by real endpoints.
 
 **Public API → canonical (normalizers):**  
 - `src/server/normalizers/base.ts`: `BaseNormalizer<TRawOutput>.normalize(rawOutput, target, traceId, investigationId?)` returns `IntelligenceEvent`.  
@@ -86,7 +86,7 @@ Existing contracts ensure ingested data from public OSINT APIs flows into a sing
 - **Normalize:** Run through `NormalizerRegistry` (or a generic normalizer for non-tool payloads) and produce `IntelligenceEvent`. Pipeline step contract: `LensNormalizationResult` / `NormalizedEvent`.
 - **Enrich:** Take `IntelligenceEvent`; add entity resolution, risk scoring, or link suggestions. Output remains canonical. Pipeline step contract: `LensEnrichmentResult` and related types.
 
-**Downstream steps** (already in UIs; enhance with real backend when adding features): Extract → Clustering → Correlate → OSINT tool enrichment → LLM analysis → Graph update → Report → Fingerprint → Audit. Each has or should have a corresponding contract in `portalTypes`.
+**Downstream steps** (already in UIs; enhance with real backend when adding features): Extract → Clustering → Correlate → OSINT tool enrichment → LLM analysis → Graph update → Report → Fingerprint → Audit. Each has or should have a corresponding contract in `src/contracts/portal.ts`.
 
 **Existing pieces:**  
 - Advanced ingestion (`/api/ingestion/advanced`): currently ad-hoc; will plug into the pipeline when a normalizer or generic ingest path is added.  

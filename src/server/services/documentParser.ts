@@ -5,6 +5,7 @@ import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../storage/s3Client';
 import { Readable } from 'stream';
 import crypto from 'crypto';
+import type { File as MulterFile } from 'multer';
 
 const CHUNK_SIZE = 2000; // Characters per chunk for Gemini analysis
 
@@ -293,7 +294,7 @@ function splitIntoChunks(text: string, chunkSize: number): string[] {
  * Process uploaded document: parse, upload to S3, analyze
  */
 export async function processDocument(
-  file: Express.Multer.File
+  file: MulterFile
 ): Promise<{
   parsed: ParsedDocument;
   s3_key: string;

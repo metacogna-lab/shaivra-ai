@@ -7,7 +7,7 @@ import {
   ExternalLink, Download, Share2
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { IntelligenceSummary, ThreatDomain } from '../../portalTypes';
+import { IntelligenceSummary, ThreatDomain } from '../../contracts';
 
 const IntelligenceAnalytics: React.FC = () => {
   const [target, setTarget] = useState('Global Resources Corp');

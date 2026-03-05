@@ -64,7 +64,7 @@ const PortalLogin: React.FC = () => {
       });
       
       // Auto-login after reset
-      const response = await portalApi.login(email);
+      const response = await portalApi.login(email, newPassword);
       if (response.token) {
         navigate('/portal/dashboard');
       }

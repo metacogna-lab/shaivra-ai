@@ -9,12 +9,16 @@ import {
   Eye, EyeOff, RefreshCw, Layers
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { 
-  LensIngestionResult, LensNormalizationResult, 
-  LensEnrichmentResult, LensClusteringResult, 
-  LensLLMReport, LensAuditEntry, FingerprintData,
-  OsintEnrichment
-} from '../../portalTypes';
+import {
+  LensIngestionResult,
+  LensNormalizationResult,
+  LensEnrichmentResult,
+  LensClusteringResult,
+  LensLLMReport,
+  LensAuditEntry,
+  FingerprintData,
+  OsintEnrichment,
+} from '../../contracts';
 
 const OSINT_TOOLS = [
   { id: 'api_shodan', name: 'Shodan', icon: Globe, description: 'Internet-connected device reconnaissance.' },
@@ -92,7 +96,7 @@ const AdvancedRecon: React.FC = () => {
       // 3. Fingerprinting
       addLog('Fingerprinter', 'Analyzing architecture and technology stack...', 'info');
       const fpRes = await portalApi.fingerprintWebsite(`https://${target}`);
-      setFingerprint(fpRes);
+      setFingerprint(fpRes as FingerprintData);
       addLog('Fingerprinter', 'Architecture fingerprinting complete.', 'success');
 
       // 4. Strategic Synthesis
@@ -244,6 +248,11 @@ const AdvancedRecon: React.FC = () => {
                   {activeTools.map((toolId) => {
                     const tool = OSINT_TOOLS.find(t => t.id === toolId);
                     const result = osintResults[toolId];
+                    const payload = (result?.data || {}) as {
+                      insight?: string;
+                      vulns?: string[];
+                      ports?: Array<string | number>;
+                    };
                     return (
                       <div key={toolId} className="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5">
                         <div className="flex items-center justify-between mb-4">
@@ -260,15 +269,15 @@ const AdvancedRecon: React.FC = () => {
                         {result ? (
                           <div className="space-y-3">
                             <div className="text-[10px] font-mono text-neutral-400 line-clamp-3 leading-relaxed">
-                              {result.data.insight}
+                              {payload.insight}
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {result.data.vulns?.slice(0, 2).map((v: string, i: number) => (
+                              {payload.vulns?.slice(0, 2).map((v, i) => (
                                 <span key={i} className="px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-500 text-[8px] font-mono rounded uppercase">
                                   {v}
                                 </span>
                               ))}
-                              {result.data.ports?.slice(0, 3).map((p: number, i: number) => (
+                              {payload.ports?.slice(0, 3).map((p, i) => (
                                 <span key={i} className="px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-mono rounded">
                                   PORT:{p}
                                 </span>

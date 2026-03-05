@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { v4 as uuidv4 } from 'uuid';
-import type { IntelligenceEvent, EntityReference, Observation } from '../../src/types/intelligence';
+import type { IntelligenceEvent, EntityReference, Observation } from '../../src/contracts';
 import type { ShodanSearchResponse } from '../../src/server/integrations/shodan';
 
 // Import normalizers
@@ -81,18 +81,21 @@ describe('Normalization Pipeline - Integration Tests', () => {
       // Should have port observation
       const portObs = event.observations.find(o => o.property === 'open_port');
       expect(portObs).toBeDefined();
-      expect(portObs?.value.port).toBe(443);
+      const portValue = portObs?.value as { port: number };
+      expect(portValue.port).toBe(443);
       expect(portObs?.confidence).toBeGreaterThan(0.9);
 
       // Should have vulnerability observation
       const vulnObs = event.observations.find(o => o.property === 'vulnerability');
       expect(vulnObs).toBeDefined();
-      expect(vulnObs?.value.cve).toBe('CVE-2021-1234');
+      const vulnValue = vulnObs?.value as { cve: string };
+      expect(vulnValue.cve).toBe('CVE-2021-1234');
 
       // Should have location observation
       const locObs = event.observations.find(o => o.property === 'location');
       expect(locObs).toBeDefined();
-      expect(locObs?.value.city).toBe('Los Angeles');
+      const locationValue = locObs?.value as { city: string };
+      expect(locationValue.city).toBe('Los Angeles');
     });
 
     it('should handle Shodan API errors gracefully', () => {

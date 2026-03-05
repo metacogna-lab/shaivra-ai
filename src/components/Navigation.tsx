@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { APP_NAME, NAVIGATION_ITEMS } from '../constants';
 import { Menu, X } from 'lucide-react';
 import { ZenEnsoSwordIcon } from './ui/Icons';
-import { ViewType } from '../types';
+import { ViewType } from '../contracts';
 import { Link } from 'react-router-dom';
 
 interface NavigationProps {

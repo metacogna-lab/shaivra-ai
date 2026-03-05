@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { BackIcon, LensIcon, ForgeIcon, ShieldIcon, ScanIcon, ZapIcon, ScaleIcon, GlobeIcon, DatabaseIcon, ProcessorIcon, DocIcon } from './ui/Icons';
-import { ViewType } from '../types';
+import { ViewType } from '../contracts';
 
 interface ToolDetailProps {
   toolId: 'lens' | 'forge' | 'shield';

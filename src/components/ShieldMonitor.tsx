@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, ArrowRight, Lock, Server, Database, Users, AlertTriangle, CheckCircle, Activity, Search } from 'lucide-react';
 import { portalApi } from '../services/portalApi';
-import { ProprietaryAsset, ShieldComparison } from '../portalTypes';
+import { ProprietaryAsset, ShieldComparison } from '../contracts';
 
 const ShieldMonitor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [assetName, setAssetName] = useState('');

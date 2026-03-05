@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DataSource, GraphQuery } from '../types';
+import { DataSource, GraphQuery } from '../contracts';
 import { DATA_SOURCES, GRAPH_QUERIES } from '../constants';
 import { CheckCircle2, Globe, Lock, Building, Users, Link, Shield, ArrowRight, Loader2, Database, Search } from 'lucide-react';
 

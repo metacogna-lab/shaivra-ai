@@ -1,4 +1,4 @@
-import { CanonicalEvent } from '../types';
+import { CanonicalEvent } from '../contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 export const osintAggregator = {

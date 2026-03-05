@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { portalApi } from '../../services/portalApi';
-import { IngestionJob, DashboardData, Project, SearchHistoryEntry } from '../../portalTypes';
+import { IngestionJob, DashboardData, Project, SearchHistoryEntry } from '../../contracts';
 import * as d3 from 'd3';
 import { PortalLogo } from '../../components/portal/Logo';
 import { CriticalAlertSystem } from '../../components/portal/dashboard/CriticalAlertSystem';
@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
       ]);
       setProjects(projRes);
       setHistory(histRes);
-      setJobs(jobsRes.data);
+      setJobs(jobsRes.data as IngestionJob[]);
       setStats(statsRes);
       if (projRes.length > 0 && !selectedProject) {
         const firstProj = projRes[0];

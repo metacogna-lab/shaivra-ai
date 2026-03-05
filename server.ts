@@ -79,10 +79,47 @@ import { ExpressAdapter } from '@bull-board/express';
 import multer from 'multer';
 import { processDocument, parsePDF, parseDOCX, parseTXT, analyzeDocument } from './src/server/services/documentParser';
 
+// Modular Routes (Phase 4 Refactoring)
+import authRoutes from './src/server/routes/auth';
+import osintRoutes from './src/server/routes/osint';
+import socialRoutes from './src/server/routes/social';
+import cliRoutes from './src/server/routes/cli';
+import documentRoutes from './src/server/routes/documents';
+import intelligenceRoutes from './src/server/routes/intelligence';
+
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+type MasterGraph = {
+  nodes: any[];
+  links: any[];
+  metadata?: Record<string, unknown>;
+};
+
+const masterGraph: MasterGraph = {
+  nodes: [],
+  links: [],
+  metadata: {},
+};
+
+const searchHistory: Array<{ id: string; query: string; timestamp: string }> = [];
+
+const trends: Array<{ trend: string; probability: number; timeframe: string; timestamp: string }> = [
+  {
+    trend: 'Supply chain disruption chatter',
+    probability: 0.62,
+    timeframe: 'short-term',
+    timestamp: new Date().toISOString(),
+  },
+  {
+    trend: 'Coordinated reputational attacks',
+    probability: 0.48,
+    timeframe: 'mid-term',
+    timestamp: new Date().toISOString(),
+  },
+];
 
 // Security middleware - MUST be first
 app.use(process.env.NODE_ENV === 'production' ? securityHeaders : devSecurityHeaders);
@@ -450,11 +487,16 @@ app.get("/api/social/aggregate", authenticate, searchLimiter, validateQuery(osin
 
 // 4f. Social Media: User Monitoring
 app.get("/api/social/monitor/:username", authenticate, searchLimiter, async (req, res) => {
-  const { username } = req.params;
-  const { platforms = 'twitter,reddit' } = req.query;
+  const username = req.params.username as string;
+  const platformsParamRaw = req.query.platforms;
 
   try {
-    const platformList = (platforms as string).split(',').filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
+    const platformsParam = Array.isArray(platformsParamRaw) ? platformsParamRaw.join(',') : platformsParamRaw;
+    const normalizedPlatforms = typeof platformsParam === 'string' ? platformsParam : 'twitter,reddit';
+    const platformList: ('twitter' | 'reddit')[] = normalizedPlatforms
+      .split(',')
+      .map(p => p.trim())
+      .filter((p): p is 'twitter' | 'reddit' => p === 'twitter' || p === 'reddit');
 
     const data = await monitorUser(username, platformList);
 
@@ -541,11 +583,13 @@ app.post("/api/cli/theharvester", authenticate, searchLimiter, async (req, res) 
 
 // 4i. CLI Tools: Get Job Status
 app.get("/api/cli/job/:jobId", authenticate, async (req, res) => {
-  const { jobId } = req.params;
-  const { queue = 'sherlock' } = req.query;
+  const jobId = req.params.jobId as string;
+  const queueParamRaw = req.query.queue;
 
   try {
-    const targetQueue = queue === 'theharvester' ? theharvesterQueue : sherlockQueue;
+    const queueParam = Array.isArray(queueParamRaw) ? queueParamRaw[0] : queueParamRaw;
+    const queueName = typeof queueParam === 'string' ? queueParam : 'sherlock';
+    const targetQueue = queueName === 'theharvester' ? theharvesterQueue : sherlockQueue;
     const status = await getJobStatus(targetQueue, jobId);
 
     res.json(status);
@@ -1534,15 +1578,35 @@ app.get("/api/agent/investigate/:runId", (req, res) => {
   res.json(inv);
 });
 
-app.patch("/api/projects/:projectId/settings", (req, res) => {
-  const { projectId } = req.params;
+app.patch("/api/projects/:projectId/settings", authenticate, async (req, res) => {
+  const projectId = req.params.projectId as string;
   const { settings } = req.body;
-  const project = projects.find(p => p.id === projectId);
-  if (!project) {
-    return res.status(404).json({ error: "Project not found" });
+
+  try {
+    const project = await projectRepository.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ error: "Project not found" });
+    }
+
+    const currentSettings =
+      (typeof project.settings === 'object' && project.settings !== null
+        ? (project.settings as Record<string, unknown>)
+        : {}) as Record<string, unknown>;
+
+    const mergedSettings = {
+      ...currentSettings,
+      ...(typeof settings === 'object' && settings !== null ? settings : {}),
+    };
+
+    const updated = await projectRepository.update(projectId, {
+      settings: mergedSettings,
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    console.error('[Project Settings Update]', error);
+    res.status(500).json({ error: error.message });
   }
-  project.settings = { ...project.settings, ...settings };
-  res.json(project);
 });
 
 // CSRF token endpoint (must be called before any state-changing operations)
@@ -1627,6 +1691,14 @@ app.post("/api/auth/logout", authenticate, async (req, res) => {
     });
   }
 });
+
+// --- Route Modules (Phase 4: Refactoring) ---
+app.use('/api/auth', authRoutes);
+app.use('/api/osint', osintRoutes);
+app.use('/api/social', socialRoutes);
+app.use('/api/cli', cliRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/intelligence', intelligenceRoutes);
 
   if (process.env.NODE_ENV !== "test") {
     app.listen(PORT, "0.0.0.0", () => {

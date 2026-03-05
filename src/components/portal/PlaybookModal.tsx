@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldAlert, Target, Activity, ChevronRight } from 'lucide-react';
-import { Playbook } from '../../types';
+import { Playbook } from '../../contracts';
 
 interface PlaybookModalProps {
   playbook: Playbook | null;

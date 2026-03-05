@@ -1,23 +1,23 @@
 import { prisma } from '../db/prismaClient';
-import { InvestigationStatus } from '@prisma/client';
+import { InvestigationStatus, Prisma } from '@prisma/client';
 
 export interface CreateInvestigationInput {
   target: string;
   goal: string;
   certainty?: number;
-  logs?: unknown[];
-  entities?: unknown[];
-  citations?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  logs?: Prisma.JsonArray;
+  entities?: Prisma.JsonArray;
+  citations?: Prisma.InputJsonValue;
+  metadata?: Prisma.InputJsonValue;
 }
 
 export interface UpdateInvestigationInput {
   status?: InvestigationStatus;
   certainty?: number;
-  logs?: unknown[];
-  entities?: unknown[];
-  citations?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  logs?: Prisma.JsonArray;
+  entities?: Prisma.JsonArray;
+  citations?: Prisma.InputJsonValue;
+  metadata?: Prisma.InputJsonValue;
   completedAt?: Date;
 }
 
@@ -81,10 +81,10 @@ export const investigationRepository = {
         target: data.target,
         goal: data.goal,
         certainty: data.certainty || 0,
-        logs: data.logs || [],
-        entities: data.entities || [],
-        citations: data.citations,
-        metadata: data.metadata,
+        logs: data.logs ?? [],
+        entities: data.entities ?? [],
+        citations: data.citations ?? Prisma.JsonNull,
+        metadata: data.metadata ?? Prisma.JsonNull,
       },
     });
   },

@@ -1,4 +1,4 @@
-"""Entity schema for LangGraph; maps to EntityReference in src/types/intelligence.ts."""
+"""Entity schema for LangGraph; maps to EntityReference in src/contracts/intelligence.ts."""
 from dataclasses import dataclass
 from typing import Any
 

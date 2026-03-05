@@ -5,7 +5,7 @@ import type {
   Observation,
   Relationship,
   IntelligenceEvent
-} from '@/types/intelligence';
+} from '@/contracts';
 
 describe('Canonical Intelligence Schema', () => {
   describe('EntityReference', () => {
@@ -140,9 +140,10 @@ describe('Canonical Intelligence Schema', () => {
         }
       };
 
-      expect(entity.attributes.port).toBe(80);
-      expect(entity.attributes.ssl).toBe(true);
-      expect(entity.attributes.customField.nested).toBe('value');
+      const attrs = entity.attributes as Record<string, any>;
+      expect(attrs.port).toBe(80);
+      expect(attrs.ssl).toBe(true);
+      expect((attrs.customField as Record<string, any>).nested).toBe('value');
     });
 
     it('supports optional notes in metadata', () => {
@@ -338,8 +339,12 @@ describe('Canonical Intelligence Schema', () => {
         context: {}
       };
 
-      expect(observation.value.amount).toBe(1500.50);
-      expect(observation.value.parties).toHaveLength(2);
+      const value = observation.value as {
+        amount: number;
+        parties: string[];
+      };
+      expect(value.amount).toBe(1500.50);
+      expect(value.parties).toHaveLength(2);
     });
   });
 
@@ -730,8 +735,9 @@ describe('Canonical Intelligence Schema', () => {
         }
       };
 
-      expect(event.metadata.raw).toEqual(rawOutput);
-      expect(event.metadata.raw.api_version).toBe('2.0');
+      const raw = event.metadata.raw as { api_version: string };
+      expect(raw).toEqual(rawOutput);
+      expect(raw.api_version).toBe('2.0');
     });
   });
 });

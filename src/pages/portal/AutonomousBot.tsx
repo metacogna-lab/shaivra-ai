@@ -7,7 +7,7 @@ import {
   AlertCircle, CheckCircle2, Loader2
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { BotState } from '../../portalTypes';
+import { BotState } from '../../contracts';
 
 const AutonomousBot: React.FC = () => {
   const [sector, setSector] = useState('Semiconductors');

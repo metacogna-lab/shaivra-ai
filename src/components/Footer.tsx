@@ -1,6 +1,6 @@
 import React from 'react';
 import { APP_NAME } from '../constants';
-import { ViewType } from '../types';
+import { ViewType } from '../contracts';
 
 interface FooterProps {
   onNavigate: (view: ViewType) => void;

@@ -7,7 +7,7 @@
  * @module normalizers/base
  */
 
-import type { IntelligenceEvent } from '../../types/intelligence';
+import type { IntelligenceEvent } from '../../contracts';
 
 /**
  * Base Normalizer Interface

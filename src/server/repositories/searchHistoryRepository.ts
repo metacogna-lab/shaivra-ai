@@ -1,10 +1,11 @@
 import { prisma } from '../db/prismaClient';
+import { Prisma } from '@prisma/client';
 
 export interface CreateSearchHistoryInput {
   query: string;
-  results: Record<string, unknown>;
+  results: Prisma.InputJsonValue;
   source?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
   userId: string;
 }
 
@@ -32,7 +33,7 @@ export const searchHistoryRepository = {
         query: data.query,
         results: data.results,
         source: data.source,
-        metadata: data.metadata,
+        metadata: data.metadata ?? Prisma.JsonNull,
         userId: data.userId,
       },
     });

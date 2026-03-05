@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hammer, ArrowRight, Activity, Terminal, FileJson, Loader2, Play, CheckCircle, AlertTriangle, TrendingUp } from 'lucide-react';
 import { portalApi } from '../services/portalApi';
-import { ForgeSimulation, ForgeReport } from '../portalTypes';
+import { ForgeSimulation, ForgeReport } from '../contracts';
 
 const CodeBlock: React.FC<{ title: string; data: any; color?: string }> = ({ title, data, color = "text-gray-300" }) => (
   <div className="bg-neutral-950 rounded-lg border border-white/10 overflow-hidden font-mono text-xs my-2">
@@ -53,7 +53,7 @@ const ForgeMonitor: React.FC<{ onBack: () => void; onNavigate?: (view: string) =
       // 2. Simulate Steps (0 -> 100)
       let currentSim = initRes.data;
       while (currentSim.progress < 100) {
-        const stepRes = await portalApi.runForgeStep(currentSim.simulation_id);
+        const stepRes = await portalApi.runForgeStep(currentSim);
         currentSim = { ...currentSim, ...stepRes.data };
         setSimulation(currentSim);
       }

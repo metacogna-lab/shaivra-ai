@@ -1,12 +1,12 @@
 import { prisma } from '../db/prismaClient';
-import { ReportType } from '@prisma/client';
+import { ReportType, Prisma } from '@prisma/client';
 
 export interface CreateReportInput {
   type: ReportType;
   title?: string;
-  data: Record<string, unknown>;
+  data: Prisma.InputJsonValue;
   summary?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 /**
@@ -53,7 +53,7 @@ export const reportRepository = {
         title: data.title,
         data: data.data,
         summary: data.summary,
-        metadata: data.metadata,
+        metadata: data.metadata ?? Prisma.JsonNull,
       },
     });
   },

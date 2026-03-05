@@ -2,7 +2,17 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Database, FileCode, ArrowRight, CheckCircle, Loader2, Server, Shield, Terminal, Network, Search, FileText, BrainCircuit, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import { portalApi } from '../services/portalApi';
-import { IngestionEvent, NormalizedEvent, EnrichedEvent, ExtractedData, OsintEnrichment, GraphUpdate, StrategicReport, FingerprintData, StrategicCorrelation } from '../portalTypes';
+import {
+  IngestionEvent,
+  NormalizedEvent,
+  EnrichedEvent,
+  ExtractedData,
+  OsintEnrichment,
+  GraphUpdate,
+  StrategicReport,
+  FingerprintData,
+  StrategicCorrelation,
+} from '../contracts';
 
 // --- Types ---
 
@@ -253,6 +263,13 @@ const StrategicCorrelationCard: React.FC<{ data: StrategicCorrelation }> = ({ da
 };
 
 const OsintCard: React.FC<{ data: OsintEnrichment }> = ({ data }) => {
+  const payload = data.data as {
+    ip?: string;
+    ports?: Array<string | number>;
+    hostnames?: string[];
+    vulns?: string[];
+    insight?: string;
+  };
   return (
     <div className="bg-neutral-900 border border-pink-500/30 rounded-xl overflow-hidden shadow-lg">
       <div className="px-4 py-3 bg-pink-500/10 border-b border-pink-500/20 flex items-center justify-between">
@@ -268,12 +285,12 @@ const OsintCard: React.FC<{ data: OsintEnrichment }> = ({ data }) => {
         <div className="space-y-3">
            <div>
              <div className="text-[10px] uppercase font-bold text-pink-400 mb-1">Target IP</div>
-             <div className="text-xs font-mono text-gray-300">{data.data.ip}</div>
+             <div className="text-xs font-mono text-gray-300">{payload.ip || 'n/a'}</div>
            </div>
            <div>
              <div className="text-[10px] uppercase font-bold text-pink-400 mb-1">Open Ports</div>
              <div className="flex flex-wrap gap-1">
-               {data.data.ports.map(p => (
+               {(payload.ports || []).map((p) => (
                  <span key={p} className="px-1.5 py-0.5 bg-neutral-800 rounded text-[10px] text-pink-300 border border-pink-500/20">{p}</span>
                ))}
              </div>
@@ -283,7 +300,7 @@ const OsintCard: React.FC<{ data: OsintEnrichment }> = ({ data }) => {
            <div>
              <div className="text-[10px] uppercase font-bold text-pink-400 mb-1">Identified Hostnames</div>
              <div className="space-y-1">
-               {data.data.hostnames.map(h => (
+               {(payload.hostnames || []).map(h => (
                  <div key={h} className="text-[10px] font-mono text-gray-400 truncate">{h}</div>
                ))}
              </div>
@@ -291,18 +308,18 @@ const OsintCard: React.FC<{ data: OsintEnrichment }> = ({ data }) => {
            <div>
              <div className="text-[10px] uppercase font-bold text-pink-400 mb-1">Vulnerabilities</div>
              <div className="flex flex-wrap gap-1">
-               {data.data.vulns.map(v => (
+               {(payload.vulns || []).map(v => (
                  <span key={v} className="px-1.5 py-0.5 bg-red-900/20 rounded text-[9px] text-red-400 border border-red-500/20">{v}</span>
                ))}
              </div>
            </div>
         </div>
       </div>
-      {(data.data as any).insight && (
+      {payload.insight && (
         <div className="px-4 pb-4">
           <div className="text-[10px] uppercase font-bold text-pink-400 mb-2">Intelligence Insight</div>
           <div className="p-3 bg-pink-500/5 border border-pink-500/20 rounded text-xs text-gray-300 italic leading-relaxed">
-            {(data.data as any).insight}
+            {payload.insight}
           </div>
         </div>
       )}
@@ -487,6 +504,7 @@ const PipelineMonitor: React.FC<{ onBack: () => void; onNavigate?: (view: string
     normalized: null,
     enriched: null,
     extracted: null,
+    correlation: null,
     osint: null,
     fingerprint: null,
     graphUpdate: null,
@@ -533,6 +551,7 @@ const PipelineMonitor: React.FC<{ onBack: () => void; onNavigate?: (view: string
       normalized: null, 
       enriched: null,
       extracted: null,
+      correlation: null,
       osint: null,
       graphUpdate: null,
       report: null
@@ -545,37 +564,44 @@ const PipelineMonitor: React.FC<{ onBack: () => void; onNavigate?: (view: string
 
       // 2. Ingest (Rust Service)
       const ingestRes = await portalApi.ingestEvent(rawRes.data, state.sourceType);
-      setState(prev => ({ ...prev, stage: 'normalizing', ingested: ingestRes.data }));
+      const ingested = ingestRes.data as IngestionEvent;
+      setState(prev => ({ ...prev, stage: 'normalizing', ingested }));
 
       // 3. Normalize (NLP Service)
-      const normRes = await portalApi.normalizeEvent(ingestRes.data);
-      setState(prev => ({ ...prev, stage: 'enriching', normalized: normRes.data }));
+      const normRes = await portalApi.normalizeEvent(ingested);
+      const normalized = normRes.data as NormalizedEvent;
+      setState(prev => ({ ...prev, stage: 'enriching', normalized }));
 
       // 4. Enrich (ML Service)
-      const enrichRes = await portalApi.enrichEvent(normRes.data, targetInput);
-      setState(prev => ({ ...prev, stage: 'extracting', enriched: enrichRes.data }));
+      const enrichRes = await portalApi.enrichEvent(normalized, targetInput);
+      const enriched = enrichRes.data as EnrichedEvent;
+      setState(prev => ({ ...prev, stage: 'extracting', enriched }));
 
       // 5. Extract Entities (DeepAgent NER)
-      const extractRes = await portalApi.extractEntities(enrichRes.data, targetInput);
-      setState(prev => ({ ...prev, stage: 'correlating', extracted: extractRes.data }));
+      const extractRes = await portalApi.extractEntities(enriched, targetInput);
+      const extracted = extractRes.data as ExtractedData;
+      setState(prev => ({ ...prev, stage: 'correlating', extracted }));
 
       // 6. Strategic Correlation (Goal Alignment)
-      const correlationRes = await portalApi.correlateIntelligence(extractRes.data, targetInput);
-      setState(prev => ({ ...prev, stage: 'osint', correlation: correlationRes.data }));
+      const correlationRes = await portalApi.correlateIntelligence(extracted, targetInput);
+      const correlation = correlationRes.data as StrategicCorrelation;
+      setState(prev => ({ ...prev, stage: 'osint', correlation }));
 
       // 7. OSINT Enrichment (Tool Execution)
-      const targetEntityId = extractRes.data.entities[0]?.id || 'unknown';
+      const targetEntityId = extracted.entities[0]?.id || 'unknown';
       const osintRes = await portalApi.runOsintEnrichment(targetEntityId, targetInput, selectedSpecificSource);
-      setState(prev => ({ ...prev, stage: 'graph_update', osint: osintRes.data }));
+      const osint = osintRes.data as OsintEnrichment;
+      setState(prev => ({ ...prev, stage: 'graph_update', osint }));
 
       // 8. Graph Update (Ontology Mapping)
-      const graphRes = await portalApi.updateKnowledgeGraph(extractRes.data);
-      setState(prev => ({ ...prev, stage: 'reporting', graphUpdate: graphRes.data }));
+      const graphRes = await portalApi.updateKnowledgeGraph(extracted);
+      const graphUpdate = graphRes.data as GraphUpdate;
+      setState(prev => ({ ...prev, stage: 'reporting', graphUpdate }));
 
       // 8. Website Fingerprinting (Final Recon)
       let fpData = null;
       try {
-        fpData = await portalApi.fingerprintWebsite(`https://${targetInput.toLowerCase().replace(/\s+/g, '')}.com`);
+        fpData = (await portalApi.fingerprintWebsite(`https://${targetInput.toLowerCase().replace(/\s+/g, '')}.com`)) as FingerprintData;
         setState(prev => ({ ...prev, fingerprint: fpData }));
       } catch (e) {
         console.warn("Fingerprinting failed, skipping...");
@@ -587,15 +613,16 @@ const PipelineMonitor: React.FC<{ onBack: () => void; onNavigate?: (view: string
         target: targetInput,
         source: selectedSpecificSource,
         raw: rawRes.data,
-        normalized: normRes.data,
-        enriched: enrichRes.data,
-        extracted: extractRes.data,
-        osint: osintRes.data,
+        normalized,
+        enriched,
+        extracted,
+        osint,
         fingerprint: fpData,
-        graph: graphRes.data
+        graph: graphUpdate
       };
       const reportRes = await portalApi.generateStrategicReport(pipelineData, targetInput);
-      setState(prev => ({ ...prev, stage: 'complete', report: reportRes.data }));
+      const report = reportRes.data as StrategicReport;
+      setState(prev => ({ ...prev, stage: 'complete', report }));
 
     } catch (err) {
       console.error("Pipeline Error:", err);

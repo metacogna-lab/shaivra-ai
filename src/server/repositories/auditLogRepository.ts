@@ -1,10 +1,11 @@
 import { prisma } from '../db/prismaClient';
+import { Prisma } from '@prisma/client';
 
 export interface CreateAuditLogInput {
   userId: string;
   action: string;
   resource: string;
-  details?: Record<string, unknown>;
+  details?: Prisma.InputJsonValue;
   ipAddress?: string;
   userAgent?: string;
 }
@@ -22,7 +23,7 @@ export const auditLogRepository = {
         userId: data.userId,
         action: data.action,
         resource: data.resource,
-        details: data.details,
+        details: data.details ?? Prisma.JsonNull,
         ipAddress: data.ipAddress,
         userAgent: data.userAgent,
       },
@@ -182,5 +183,51 @@ export const auditLogRepository = {
     return Object.entries(stats)
       .map(([action, count]) => ({ action, count }))
       .sort((a, b) => b.count - a.count);
+  },
+
+  /**
+   * Find logs by investigation UUID (for LLM tracing and lineage)
+   */
+  async findByInvestigation(investigationUUID: string) {
+    return prisma.auditLog.findMany({
+      where: {
+        details: {
+          path: ['investigation_uuid'],
+          equals: investigationUUID,
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+  },
+
+  /**
+   * Find all LLM calls (Gemini invocations) with hashes for audit trail
+   */
+  async findLLMCalls(limit = 100) {
+    return prisma.auditLog.findMany({
+      where: {
+        action: {
+          in: ['gemini_call', 'gemini_call_failed'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
   },
 };

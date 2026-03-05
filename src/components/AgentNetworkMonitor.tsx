@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, ArrowRight, Database, Globe, Network, Server, Shield, Terminal, User, FileText, Activity, Layers, Building2, Search } from 'lucide-react';
 import { portalApi } from '../services/portalApi';
-import { AgentRun, AgentLog } from '../portalTypes';
+import { AgentRun, AgentLog } from '../contracts';
 
 const AgentNetworkMonitor: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [target, setTarget] = useState('Project Blue Horizon');

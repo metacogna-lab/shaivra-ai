@@ -8,11 +8,16 @@ import {
   Linkedin, Github, Newspaper, Zap
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { 
-  LensIngestionResult, LensNormalizationResult, LensEnrichmentResult, 
-  LensClusteringResult, LensLLMReport, LensAuditEntry, FingerprintData,
-  Project
-} from '../../portalTypes';
+import {
+  LensIngestionResult,
+  LensNormalizationResult,
+  LensEnrichmentResult,
+  LensClusteringResult,
+  LensLLMReport,
+  LensAuditEntry,
+  FingerprintData,
+  Project,
+} from '../../contracts';
 
 const PUBLIC_SOURCES = [
   { id: 'web', name: 'Universal Web', icon: Globe, description: 'Broad surface web crawling and indexing.' },
@@ -131,38 +136,42 @@ const Lens: React.FC = () => {
       setCurrentStatus('Normalizing State via LangGraph...');
       setPipelineProgress(50);
       const normRes = await portalApi.simulateNormalization(ingRes.job_ids[0]);
-      setNormalization(normRes.data);
+      const normalizationResult = normRes.data as LensNormalizationResult;
+      setNormalization(normalizationResult);
       setStepStatus(prev => ({ ...prev, normalization: 'complete', enrichment: 'loading' }));
       setActiveStep(3);
 
       // 3. Enrichment
       setCurrentStatus('Synthesizing Multi-Agent OSINT...');
       setPipelineProgress(70);
-      const enrichRes = await portalApi.simulateEnrichment(normRes.data.event_id);
-      setEnrichment(enrichRes.data);
+      const enrichRes = await portalApi.simulateEnrichment(normalizationResult.event_id);
+      const enrichmentResult = enrichRes.data as LensEnrichmentResult;
+      setEnrichment(enrichmentResult);
       setStepStatus(prev => ({ ...prev, enrichment: 'complete', clustering: 'loading' }));
       setActiveStep(4);
 
       // 4. Clustering
       setCurrentStatus('Analyzing Relational Graph Clusters...');
       setPipelineProgress(85);
-      const clustRes = await portalApi.simulateClustering(normRes.data.event_id);
-      setClustering(clustRes.data);
+      const clustRes = await portalApi.simulateClustering(normalizationResult.event_id);
+      const clusteringResult = clustRes.data as LensClusteringResult;
+      setClustering(clusteringResult);
       setStepStatus(prev => ({ ...prev, clustering: 'complete', llm: 'loading' }));
       setActiveStep(5);
 
       // 5. LLM Analysis
       setCurrentStatus('Generating Strategic Intelligence Synthesis...');
       setPipelineProgress(95);
-      const llmRes = await portalApi.simulateLLMAnalysis(clustRes.data.cluster_id);
-      setLlmReport(llmRes.data);
+      const llmRes = await portalApi.simulateLLMAnalysis(clusteringResult.cluster_id);
+      const llmResult = llmRes.data as LensLLMReport;
+      setLlmReport(llmResult);
       setStepStatus(prev => ({ ...prev, llm: 'complete', fingerprint: 'loading' }));
 
       // 6. Website Fingerprinting
       setCurrentStatus('Finalizing Fingerprint Analysis...');
       try {
         const fpRes = await portalApi.fingerprintWebsite(`https://${target.toLowerCase().replace(/\s+/g, '')}.com`);
-        setFingerprint(fpRes);
+        setFingerprint(fpRes as FingerprintData);
       } catch (e) {
         setFingerprint({
           stack: ["React", "Node.js", "PostgreSQL", "Redis"],
@@ -208,7 +217,7 @@ const Lens: React.FC = () => {
     setStepStatus(prev => ({ ...prev, audit: 'loading' }));
     try {
       const auditRes = await portalApi.submitAuditDecision(decision);
-      setAudit(auditRes.data);
+      setAudit(auditRes.data as LensAuditEntry);
       setStepStatus(prev => ({ ...prev, audit: 'complete' }));
     } catch (error) {
       console.error("Audit Error", error);

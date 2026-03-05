@@ -8,7 +8,7 @@ import {
   Layers, Target, Zap
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { WeeklyIntelligenceReport } from '../../portalTypes';
+import { WeeklyIntelligenceReport } from '../../contracts';
 
 const WeeklyReports: React.FC = () => {
   const [reports, setReports] = useState<WeeklyIntelligenceReport[]>([]);

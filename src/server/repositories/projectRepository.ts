@@ -1,17 +1,17 @@
 import { prisma } from '../db/prismaClient';
-import { ProjectStatus } from '@prisma/client';
+import { ProjectStatus, Prisma } from '@prisma/client';
 
 export interface CreateProjectInput {
   name: string;
   description?: string;
-  settings?: Record<string, unknown>;
+  settings?: Prisma.InputJsonValue;
   userId: string;
 }
 
 export interface UpdateProjectInput {
   name?: string;
   description?: string;
-  settings?: Record<string, unknown>;
+  settings?: Prisma.InputJsonValue;
   status?: ProjectStatus;
 }
 
@@ -79,7 +79,7 @@ export const projectRepository = {
       data: {
         name: data.name,
         description: data.description,
-        settings: data.settings || {},
+        settings: (data.settings ?? {}) as Prisma.InputJsonValue,
         userId: data.userId,
       },
     });

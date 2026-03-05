@@ -30,13 +30,13 @@ export const filteredSearchSchema = z.object({
   query: z.string()
     .min(1, 'Query cannot be empty')
     .max(500, 'Query too long'),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
   traceId: z.string().uuid().optional(),
 });
 
 // Report Schemas
 export const reportSchema = z.object({
-  pipelineData: z.record(z.unknown())
+  pipelineData: z.record(z.string(), z.unknown())
     .refine(
       (data) => JSON.stringify(data).length < 50000,
       'Pipeline data exceeds 50KB limit'
@@ -48,7 +48,7 @@ export const reportSchema = z.object({
 });
 
 export const summarizeSchema = z.object({
-  data: z.record(z.unknown())
+  data: z.record(z.string(), z.unknown())
     .refine(
       (data) => JSON.stringify(data).length < 100000,
       'Data exceeds 100KB limit'
@@ -132,13 +132,13 @@ export const projectSchema = z.object({
   description: z.string()
     .max(1000, 'Description too long')
     .optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const projectUpdateSchema = z.object({
   name: z.string().max(200, 'Project name too long').optional(),
   description: z.string().max(1000, 'Description too long').optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
   status: z.enum(['active', 'archived', 'deleted']).optional(),
 });
 
@@ -160,7 +160,7 @@ export const ingestionSchema = z.object({
     url: z.string().url('Invalid source URL').optional(),
     query: z.string().optional(),
   })).min(1, 'At least one source required'),
-  filters: z.record(z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
 });
 
 // Analytics Schemas

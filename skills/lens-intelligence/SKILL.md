@@ -26,4 +26,4 @@ description: Extracts entities, relationships, and sentiment from open-source in
 
 ## Output
 
-Graph data (nodes/edges JSON) compatible with Neo4j/GraphDB; maps to `EntityReference`, `Relationship`, and `IntelligenceEvent` in `src/types/intelligence.ts`. See references/schemas.md and assets/entity_schema.json.
+Graph data (nodes/edges JSON) compatible with Neo4j/GraphDB; maps to `EntityReference`, `Relationship`, and `IntelligenceEvent` in `src/contracts/intelligence.ts`. See references/schemas.md and assets/entity_schema.json.

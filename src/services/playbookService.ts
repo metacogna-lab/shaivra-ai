@@ -1,4 +1,4 @@
-import { Playbook, PlaybookStrategy } from '../types';
+import { Playbook, PlaybookStrategy } from '../contracts';
 
 // Simulated Playbook Generator
 export const generatePlaybook = async (

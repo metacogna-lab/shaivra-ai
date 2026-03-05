@@ -7,7 +7,7 @@ import {
   ChevronRight, Info, Briefcase, Flag
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { OrganisationProfile, OrgProfilingJob } from '../../portalTypes';
+import { OrganisationProfile, OrgProfilingJob } from '../../contracts';
 
 const OrgProfiler: React.FC = () => {
   const [orgName, setOrgName] = useState('');

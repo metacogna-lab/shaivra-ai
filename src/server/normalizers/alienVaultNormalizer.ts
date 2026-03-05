@@ -3,7 +3,7 @@
  */
 
 import { AbstractNormalizer } from './base';
-import type { IntelligenceEvent, EntityReference, Observation, Relationship } from '../../types/intelligence';
+import type { IntelligenceEvent, EntityReference, Observation, Relationship } from '../../contracts';
 import type { AlienVaultIndicator } from '../integrations/alienvault';
 
 export class AlienVaultNormalizer extends AbstractNormalizer<AlienVaultIndicator> {

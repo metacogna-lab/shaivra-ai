@@ -9,10 +9,8 @@ let driver: Driver | null = null;
 
 export function getDriver(): Driver {
   if (!driver) {
-    driver = neo4j.driver(
-      uri,
-      user ? neo4j.auth.basic(user, password) : neo4j.auth.none()
-    );
+    const authToken = user ? neo4j.auth.basic(user, password) : undefined;
+    driver = neo4j.driver(uri, authToken);
   }
   return driver;
 }

@@ -2,13 +2,22 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI } from "@google/genai";
 import { MOCK_GRAPH_DATA, generateMockNeighbors, IN_MEMORY_ENTITIES, PRESET_CAMPAIGNS, GRAPH_VERSION } from '../constants';
-import { GraphNode, GraphEdge, EntityType, GraphData, DossierStep, Campaign, DataSource, GraphQuery } from '../types';
+import {
+  GraphNode,
+  GraphEdge,
+  EntityType,
+  GraphData,
+  DossierStep,
+  Campaign,
+  DataSource,
+  GraphQuery,
+  Playbook,
+} from '../contracts';
 import { Search, ZoomIn, ZoomOut, Maximize, RefreshCw, Loader2, FileText, X, Plus, ShieldAlert, Target, Activity, CheckCircle2, ChevronDown, ChevronUp, Play, RotateCcw, Network, ArrowRight, Globe, Shield, Folder } from 'lucide-react';
 import { PersonIcon, OrgIcon, EventIcon, PolicyIcon, FilterIcon, ClockIcon, BackIcon, SignalIcon, LensIcon, ZapIcon } from './ui/Icons';
 import { generatePlaybook } from '../services/playbookService';
 import { PlaybookModal } from './portal/PlaybookModal';
 import { GraphSetupWizard } from './GraphSetupWizard';
-import { Playbook } from '../types';
 
 interface KnowledgeGraphExplorerProps {
   onBack: () => void;
@@ -93,7 +102,7 @@ const GraphEducationPanel: React.FC = () => {
 
 const DataSidebar: React.FC<{ 
     nodes: GraphNode[], 
-    edges: import('../types').GraphEdge[],
+    edges: import('../contracts').GraphEdge[],
     onAdd: (node: GraphNode) => void,
     existingIds: string[],
     onFocusNode: (node: GraphNode) => void
@@ -209,7 +218,7 @@ const DataSidebar: React.FC<{
                             ) : activeTab === 'links' ? (
                                 <div className="p-3 space-y-6">
                                     {(() => {
-                                        const edgeGroups: Record<string, import('../types').GraphEdge[]> = {
+                                        const edgeGroups: Record<string, import('../contracts').GraphEdge[]> = {
                                             'Financial': [],
                                             'Infrastructure': [],
                                             'Narrative': [],
@@ -225,7 +234,7 @@ const DataSidebar: React.FC<{
 
                                         return (
                                             <div className="space-y-6">
-                                                {(Object.entries(edgeGroups) as [string, import('../types').GraphEdge[]][]).map(([category, categoryEdges]) => (
+                                                {(Object.entries(edgeGroups) as [string, import('../contracts').GraphEdge[]][]).map(([category, categoryEdges]) => (
                                                     categoryEdges.length > 0 && (
                                                         <div key={category}>
                                                             <h5 className="px-2 mb-3 text-[9px] font-mono uppercase text-neutral-500 tracking-[0.2em] flex justify-between items-center">
@@ -891,7 +900,7 @@ const KnowledgeGraphExplorer: React.FC<KnowledgeGraphExplorerProps> = ({ onBack 
             Role: ${selectedNode.details.role}
             Known Intelligence: ${selectedNode.details.description}
             Known Connections: ${connections}
-            Credibility Score: ${selectedNode.details.credibility}
+            Confidence Score: ${selectedNode.confidence}
             
             Format the report with the following sections:
             1. EXECUTIVE SUMMARY (1 sentence)
@@ -913,7 +922,7 @@ const KnowledgeGraphExplorer: React.FC<KnowledgeGraphExplorerProps> = ({ onBack 
             generatedText = response.text || "Analysis complete. No actionable intelligence found.";
         } else {
             // Fallback
-            generatedText = `[SIMULATION MODE - API KEY MISSING]\n\n1. EXECUTIVE SUMMARY\nSubject ${selectedNode.label} exhibits high centrality within the current dataset, indicating a pivotal role in the observed network.\n\n2. KEY FINDINGS\n- Direct link established with ${connections.split(';')[0] || "unknown entities"}.\n- Credibility score of ${selectedNode.details.credibility} suggests high reliability of source data.\n- Temporal analysis indicates recent surge in activity.\n\n3. RECOMMENDED ACTIONS\n- Initiate deep-dive surveillance on financial vectors.\n- Correlate travel logs with known associates.\n- Monitor for further expansion of network nodes.`;
+            generatedText = `[SIMULATION MODE - API KEY MISSING]\n\n1. EXECUTIVE SUMMARY\nSubject ${selectedNode.label} exhibits high centrality within the current dataset, indicating a pivotal role in the observed network.\n\n2. KEY FINDINGS\n- Direct link established with ${connections.split(';')[0] || "unknown entities"}.\n- Confidence score of ${selectedNode.confidence} suggests high reliability of source data.\n- Temporal analysis indicates recent surge in activity.\n\n3. RECOMMENDED ACTIONS\n- Initiate deep-dive surveillance on financial vectors.\n- Correlate travel logs with known associates.\n- Monitor for further expansion of network nodes.`;
         }
 
         // Step 3 -> 4
@@ -1008,7 +1017,7 @@ const KnowledgeGraphExplorer: React.FC<KnowledgeGraphExplorerProps> = ({ onBack 
             // Style based on relationship type
             if (edge.type === 'FUNDS' || edge.type === 'OWNS') {
                 ctx.strokeStyle = isHighlighted ? '#10B981' : '#059669'; // Emerald for financial
-            } else if (edge.type === 'ATTACKED' || edge.type === 'THREAT_INDICATOR') {
+            } else if (edge.type === 'ATTACKED' || edge.type === 'DERIVED_FROM') {
                 ctx.strokeStyle = isHighlighted ? '#EF4444' : '#B91C1C'; // Red for threat
             } else {
                 ctx.strokeStyle = isHighlighted ? '#F59E0B' : '#3F3F46'; // Default

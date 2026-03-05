@@ -1,4 +1,4 @@
-"""Intelligence event schema for LangGraph; maps to IntelligenceEvent in src/types/intelligence.ts."""
+"""Intelligence event schema for LangGraph; maps to IntelligenceEvent in src/contracts/intelligence.ts."""
 from dataclasses import dataclass
 from typing import Any
 

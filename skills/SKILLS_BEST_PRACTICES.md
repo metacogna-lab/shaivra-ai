@@ -41,4 +41,4 @@ Summary for agents: how to prepare and use Claude Code skills in the Shaivra OSI
 - **IDs:** UUIDv4 for entities, observations, relationships.
 - **Source attribution:** Every observation tracks tool, timestamp, and raw data.
 - **Immutability:** Do not mutate existing objects; return new copies.
-- See `src/types/intelligence.ts` and `tasks/bridge.md` for full rules.
+- See `src/contracts/intelligence.ts` and `tasks/bridge.md` for full rules.

@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, Mail, ArrowRight, Lock, Terminal } from 'lucide-react';
-import { OnboardingResponse } from '../../portalTypes';
+import { OnboardingResponse } from '../../contracts';
 
 const OnboardingConfirmation: React.FC = () => {
   const location = useLocation();

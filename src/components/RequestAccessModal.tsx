@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Shield, ArrowRight, Loader2, CheckCircle, Lock, Server } from 'lucide-react';
 import { portalApi } from '../services/portalApi';
 import { emailService } from '../services/emailService';
-import { OnboardingRequest } from '../portalTypes';
+import { OnboardingRequest } from '../contracts';
 
 interface RequestAccessModalProps {
   isOpen: boolean;

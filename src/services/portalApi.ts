@@ -1,3 +1,23 @@
+import type {
+  AgentRun,
+  CampaignAnalysisResult,
+  ForgeReport,
+  ForgeSimulation,
+  IngestionJob,
+  OsintEnrichment,
+  PortalApiResponse,
+  PortalMeta,
+  ProprietaryAsset,
+  ShieldComparison,
+} from '../contracts';
+
+const buildMeta = (overrides: Partial<PortalMeta> = {}): PortalMeta => ({
+  trace_id: `mock-${Math.random().toString(36).substr(2, 9)}`,
+  schema_version: 'v1.0.0',
+  timestamp: new Date().toISOString(),
+  validation_status: 'valid',
+  ...overrides,
+});
 
 // Mock Portal API service
 export const portalApi = {
@@ -90,7 +110,7 @@ export const portalApi = {
     };
   },
 
-  getLensJobs: async () => {
+  getLensJobs: async (): Promise<{ data: IngestionJob[] }> => {
     await new Promise(resolve => setTimeout(resolve, 600));
     return {
       data: [
@@ -191,6 +211,7 @@ export const portalApi = {
     await new Promise(resolve => setTimeout(resolve, 1500));
     return {
       data: {
+        event_id: eventId,
         embedding_vector: Array(5).fill(0).map(() => Math.random()),
         extracted_entities: ['Entity1', 'Entity2', 'LocationX'],
         topic_tags: ['security', 'threat', 'urgent'],
@@ -280,7 +301,7 @@ export const portalApi = {
     };
   },
 
-  pollAgentRun: async (runId: string) => {
+  pollAgentRun: async (runId: string): Promise<PortalApiResponse<AgentRun>> => {
     await new Promise(resolve => setTimeout(resolve, 500));
     const nodes = ['Supervisor', 'OSINT', 'Sherlock', 'Harvester', 'Spiderfoot', 'Maltego', 'Graph_Analyzer', 'Doc_Store', 'Relational_DB'];
     const activeNode = nodes[Math.floor(Date.now() / 2000) % nodes.length];
@@ -313,11 +334,12 @@ export const portalApi = {
             status: 'success'
           }
         ]
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
-  uploadCampaignFile: async (file: any) => {
+  uploadCampaignFile: async (file: File): Promise<PortalApiResponse<CampaignAnalysisResult>> => {
     await new Promise(resolve => setTimeout(resolve, 1500));
     return {
       data: {
@@ -339,11 +361,12 @@ export const portalApi = {
           timestamp: new Date().toISOString(),
           kg_version: 'v1'
         }
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
-  processCampaignAnalysis: async (analysisId: string) => {
+  processCampaignAnalysis: async (analysisId: string): Promise<PortalApiResponse<CampaignAnalysisResult>> => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     return {
       data: {
@@ -365,13 +388,14 @@ export const portalApi = {
           timestamp: new Date().toISOString(),
           kg_version: 'v1'
         }
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
   // --- Forge Methods ---
 
-  initiateForgeSimulation: async (params: any) => {
+  initiateForgeSimulation: async (params: Pick<ForgeSimulation, 'campaign_name' | 'sector' | 'threat_vector'>): Promise<PortalApiResponse<ForgeSimulation>> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     return {
       data: {
@@ -388,24 +412,31 @@ export const portalApi = {
           timestamp: new Date().toISOString(),
           model_version: 'v1'
         }
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
-  runForgeStep: async (simulationId: string) => {
+  runForgeStep: async (currentSimulation: ForgeSimulation): Promise<PortalApiResponse<ForgeSimulation>> => {
     await new Promise(resolve => setTimeout(resolve, 800));
+    const progress = Math.min(100, currentSimulation.progress + 25);
     return {
       data: {
-        simulation_id: simulationId,
-        status: 'simulating',
-        progress: 50,
-        outcome_probability: 0.6,
-        projected_impact: 'medium'
-      }
+        ...currentSimulation,
+        status: progress >= 100 ? 'analyzing' : 'simulating',
+        progress,
+        outcome_probability: Math.min(1, currentSimulation.outcome_probability + 0.1),
+        projected_impact: progress >= 100 ? 'high' : currentSimulation.projected_impact,
+        meta: {
+          ...currentSimulation.meta,
+          timestamp: new Date().toISOString()
+        }
+      },
+      meta: buildMeta(),
     };
   },
 
-  generateForgeReport: async (simulationId: string) => {
+  generateForgeReport: async (simulationId: string): Promise<PortalApiResponse<ForgeReport>> => {
     await new Promise(resolve => setTimeout(resolve, 1500));
     return {
       data: {
@@ -419,25 +450,27 @@ export const portalApi = {
         recommended_countermeasures: ['Pre-emptive statement', 'Monitor social channels'],
         raw_json_path: 's3://forge/reports/123.json',
         generated_at: new Date().toISOString()
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
   // --- Shield Methods ---
 
-  uploadProprietaryAsset: async (file: any) => {
+  uploadProprietaryAsset: async (asset: { name: string; type: ProprietaryAsset['type'] }): Promise<PortalApiResponse<ProprietaryAsset>> => {
     await new Promise(resolve => setTimeout(resolve, 1000));
     return {
       data: {
         asset_id: `ast_${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        type: 'intellectual_property',
+        name: asset.name,
+        type: asset.type,
         criticality: 'high'
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
-  runShieldComparison: async (assetId: string, threatRef: string) => {
+  runShieldComparison: async (assetId: string, threatRef: string): Promise<PortalApiResponse<ShieldComparison>> => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     return {
       data: {
@@ -448,7 +481,8 @@ export const portalApi = {
         vulnerability_detected: true,
         mitigation_status: 'pending',
         timestamp: new Date().toISOString()
-      }
+      },
+      meta: buildMeta(),
     };
   },
 
@@ -630,11 +664,11 @@ export const portalApi = {
         entities: [
           { id: "ent-1", text: target, type: 'ORG', confidence: 0.99, span: [0, target.length] },
           { id: "ent-2", text: "buffer overflow", type: 'CYBER_THREAT', confidence: 0.95, span: [10, 25] },
-          { id: "ent-3", text: "legacy systems", type: 'infrastructure', confidence: 0.88, span: [30, 45] }
+          { id: "ent-3", text: "legacy systems", type: 'LOC', confidence: 0.88, span: [30, 45] }
         ],
         relations: [
           { source_entity_id: "ent-2", target_entity_id: "ent-1", type: 'TARGETED', confidence: 0.9 },
-          { source_entity_id: "ent-2", target_entity_id: "ent-3", type: 'AFFECTS', confidence: 0.85 }
+          { source_entity_id: "ent-2", target_entity_id: "ent-3", type: 'AFFILIATED_WITH', confidence: 0.85 }
         ],
         meta: {
           trace_id: enrichedData.meta.trace_id,
@@ -645,10 +679,10 @@ export const portalApi = {
     };
   },
 
-  runOsintEnrichment: async (entityId: string, target: string, toolId?: string) => {
+  runOsintEnrichment: async (entityId: string, target: string, toolId?: string): Promise<PortalApiResponse<OsintEnrichment>> => {
     try {
       let osintData;
-      let toolName = 'OSINT';
+      let toolName: OsintEnrichment['tool'] = 'OSINT';
 
       if (toolId === 'api_shodan') {
         osintData = await portalApi.shodanSearch(target);
@@ -659,9 +693,15 @@ export const portalApi = {
       } else if (toolId === 'api_virustotal') {
         osintData = await portalApi.virustotalSearch(target);
         toolName = 'VirusTotal';
+      } else if (toolId === 'api_web_search') {
+        osintData = await portalApi.shodanSearch(target);
+        toolName = 'Sherlock';
+      } else if (toolId === 'api_google_search') {
+        osintData = await portalApi.shodanSearch(target);
+        toolName = 'TheHarvester';
       } else {
         osintData = await portalApi.shodanSearch(target);
-        toolName = 'Shodan';
+        toolName = 'OSINT';
       }
 
       const summary = await portalApi.summarizeIntelligence(osintData, target);
@@ -680,7 +720,8 @@ export const portalApi = {
           },
           status: 'success',
           timestamp: new Date().toISOString()
-        }
+        },
+        meta: buildMeta(),
       };
     } catch (e) {
       console.warn("OSINT Enrichment failed, using mock fallback.", e);
@@ -688,7 +729,7 @@ export const portalApi = {
       return {
         data: {
           entity_id: entityId,
-          tool: 'OSINT (Mock Fallback)',
+          tool: 'OSINT',
           data: {
             ip: "192.168.1.100",
             ports: [80, 443, 8080],
@@ -698,7 +739,8 @@ export const portalApi = {
           },
           status: 'success',
           timestamp: new Date().toISOString()
-        }
+        },
+        meta: buildMeta(),
       };
     }
   },

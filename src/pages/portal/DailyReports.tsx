@@ -8,7 +8,7 @@ import {
   ArrowRight, ShieldCheck, Database, Clock
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { DailyIntelligenceReport } from '../../portalTypes';
+import { DailyIntelligenceReport } from '../../contracts';
 
 const DailyReports: React.FC = () => {
   const [reports, setReports] = useState<DailyIntelligenceReport[]>([]);

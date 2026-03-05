@@ -45,15 +45,15 @@ sherlockQueue.process(async (job: Job<{ username: string }>) => {
   job.log(`Starting Sherlock search for username: ${username}`);
 
   try {
-    await job.updateProgress(10);
+    await job.progress(10);
 
     const result = await searchUsername(username);
 
-    await job.updateProgress(90);
+    await job.progress(90);
 
     job.log(`Sherlock found ${result.sites_with_username} sites for ${username}`);
 
-    await job.updateProgress(100);
+    await job.progress(100);
 
     return result;
   } catch (error: any) {
@@ -69,15 +69,15 @@ theharvesterQueue.process(async (job: Job<{ domain: string; source: string; limi
   job.log(`Starting TheHarvester for domain: ${domain} (source: ${source})`);
 
   try {
-    await job.updateProgress(10);
+    await job.progress(10);
 
     const result = await harvestDomain(domain, source, limit);
 
-    await job.updateProgress(90);
+    await job.progress(90);
 
     job.log(`TheHarvester found ${result.emails.length} emails, ${result.subdomains.length} subdomains`);
 
-    await job.updateProgress(100);
+    await job.progress(100);
 
     return result;
   } catch (error: any) {
@@ -162,7 +162,7 @@ export async function getJobStatus(queue: Queue, jobId: string): Promise<any> {
 
   const state = await job.getState();
   const progress = await job.progress();
-  const logs = await job.log(0, -1);
+  const logs = await queue.getJobLogs(jobId, 0, -1);
 
   return {
     id: job.id,
@@ -170,7 +170,7 @@ export async function getJobStatus(queue: Queue, jobId: string): Promise<any> {
     progress,
     data: job.data,
     result: job.returnvalue,
-    logs: logs.logs,
+    logs: logs?.logs ?? [],
     created_at: job.timestamp,
     processed_at: job.processedOn,
     finished_at: job.finishedOn,

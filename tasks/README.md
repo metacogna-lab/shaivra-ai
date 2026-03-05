@@ -4,7 +4,7 @@ This directory contains task definitions for implementing the LanggraphJS integr
 
 ## Workflow Rules
 
-1. **Schema Discipline**: All OSINT tools MUST normalize to the canonical schema (`src/types/intelligence.ts`)
+1. **Schema Discipline**: All OSINT tools MUST normalize to the canonical schema (`src/contracts/intelligence.ts`)
 2. **Immutability**: Always create new objects, never mutate existing ones
 3. **TDD Workflow**: Write tests first (RED), implement (GREEN), refactor (IMPROVE)
 4. **File Organization**: Many small files > few large files (200-400 lines typical, 800 max)

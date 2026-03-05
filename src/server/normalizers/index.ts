@@ -76,4 +76,5 @@ export const normalizerRegistry = new NormalizerRegistry();
 export { ShodanNormalizer } from './shodanNormalizer';
 export { VirusTotalNormalizer } from './virusTotalNormalizer';
 export { AlienVaultNormalizer } from './alienVaultNormalizer';
-export { BaseNormalizer, AbstractNormalizer } from './base';
+export { AbstractNormalizer } from './base';
+export type { BaseNormalizer } from './base';

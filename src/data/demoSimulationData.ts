@@ -1,4 +1,4 @@
-import { StandardizedOsintReport } from '../portalTypes';
+import { StandardizedOsintReport } from '../contracts';
 
 export const DEMO_TRACE_ID = "trc-8829-441a-992b";
 export const SCHEMA_VERSION = "v1.2.0";

@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { portalApi } from '../../services/portalApi';
-import { Trend } from '../../portalTypes';
+import { Trend } from '../../contracts';
 
 const Trends: React.FC = () => {
   const [trends, setTrends] = useState<Trend[]>([]);

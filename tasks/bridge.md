@@ -2,6 +2,28 @@
 
 This file serves as shared memory to prevent implementation drift and conflicting decisions.
 
+## 2026-03-05 - Initphase: Contracts, Backend, and Database Migrations
+
+**Branch:** `feature/initphase-db-migrations`
+
+**Objective:** Review contracts, backend repositories, and Prisma schema; add initial migration; align contracts with schema; add IntelligenceEvent repository; record decisions in bridge.
+
+**Datasource and migrations:**
+- **Prisma 7:** Connection URL lives in `prisma.config.ts` (`datasource.url`), not in `schema.prisma`. Do not add `url` to the schema datasource block (Prisma 7 rejects it).
+- **Initial migration:** `prisma/migrations/20250305233600_init/migration.sql` created via `bunx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script`. Apply with `bun run db:migrate` (or `bunx prisma migrate deploy`) when `DATABASE_URL` is set and PostgreSQL is reachable.
+- **Create migration without DB:** `bunx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script -o prisma/migrations/<timestamp>_<name>/migration.sql`, then rename folder to `YYYYMMDDHHMMSS_name`.
+
+**Contract ↔ schema alignment (document only; no breaking changes):**
+- **Role:** API/JWT use lowercase (`admin`, `analyst`, …); repository uses Prisma enum (uppercase). Auth layer maps; no schema change.
+- **Portal user:** `portalUserSchema` has id, username, role, permissions, last_login. User model has id, email, role. Response DTO derives username from email and permissions from role; last_login from session if needed.
+- **IntelligenceEvent:** Contract (`src/contracts/intelligence.ts`) matches Prisma model (Json for entities/observations/relationships). When persisting, use `intelligenceEventRepository.create(event)`; repository serializes nested Dates to JSON-safe values.
+
+**Repositories:**
+- **IntelligenceEvent:** Added `src/server/repositories/intelligenceEventRepository.ts` with `create`, `findById`, `findByTraceId`, `findByInvestigationId`, `findRecent`, `countByInvestigationId`. Maps contract `IntelligenceEvent` or `CreateIntelligenceEventInput` to Prisma. Tests: `tests/server/intelligenceEventRepository.test.ts`.
+- **TaskQueue, OrganizationProfile, RSSFeed, Trend:** No repositories yet; leave schema-only until features use them.
+
+**Verification:** `bun run db:generate` and `bun test` pass. Lint has pre-existing type errors (Express `req.user`, SDK types) unrelated to this work.
+
 ## 2026-03-05 - Initphase: Narrative Detection, Gap Detection, Validation & Budget
 
 **Branch:** `feature/initphase-narrative-gap-validation`

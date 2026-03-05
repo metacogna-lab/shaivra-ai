@@ -1,30 +1,36 @@
 import { PrismaClient } from '@prisma/client';
 
-// Prisma Client singleton to prevent multiple instances
-// https://www.prisma.io/docs/guides/performance-and-optimization/connection-management#prismaclient-in-long-running-applications
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrisma(): PrismaClient {
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
 }
+
+/** Singleton Prisma client. Only created when DATABASE_URL is set; otherwise access throws. */
+export const prisma: PrismaClient =
+  globalForPrisma.prisma ??
+  (databaseUrl
+    ? (() => {
+        const client = createPrisma();
+        if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = client;
+        return client;
+      })()
+    : (new Proxy({} as PrismaClient, {
+        get() {
+          throw new Error('Database not configured (set DATABASE_URL).');
+        },
+      }) as PrismaClient));
 
 /**
- * Gracefully disconnect Prisma on app shutdown
+ * Gracefully disconnect Prisma on app shutdown (no-op when DB not configured).
  */
-export async function disconnectPrisma() {
-  await prisma.$disconnect();
+export async function disconnectPrisma(): Promise<void> {
+  if (databaseUrl && globalForPrisma.prisma) await globalForPrisma.prisma.$disconnect();
 }
 
-// Handle cleanup on process exit
-process.on('beforeExit', async () => {
-  await disconnectPrisma();
+process.on('beforeExit', () => {
+  void disconnectPrisma();
 });

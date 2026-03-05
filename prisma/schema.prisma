@@ -2,7 +2,8 @@
 // PostgreSQL database for persistent storage
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {

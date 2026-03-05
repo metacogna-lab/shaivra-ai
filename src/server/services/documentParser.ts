@@ -1,9 +1,13 @@
 import { createRequire } from 'node:module';
 import mammoth from 'mammoth';
+import { GoogleGenAI } from '@google/genai';
 
 const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string; numpages: number }>;
-import { GoogleGenAI } from '@google/genai';
+
+/** Lazy-load pdf-parse to avoid browser-only deps (e.g. DOMMatrix) at import in test/env. */
+function getPdfParse(): (buffer: Buffer) => Promise<{ text: string; numpages: number }> {
+  return require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string; numpages: number }>;
+}
 import { callTrackedGemini, ensureTransactionId, LineageInfo } from './llmClient';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../storage/s3Client';
@@ -50,7 +54,7 @@ export interface DocumentAnalysis {
  */
 export async function parsePDF(buffer: Buffer): Promise<ParsedDocument> {
   try {
-    const data = await pdfParse(buffer);
+    const data = await getPdfParse()(buffer);
 
     return {
       filename: 'document.pdf',

@@ -1,11 +1,15 @@
 import { searchShodan, getShodanHost } from '../integrations/shodan';
 import { getAlienVaultGeneral, getAlienVaultMalware, type IndicatorType } from '../integrations/alienvault';
 import { getVirusTotalReport, type VirusTotalResourceType } from '../integrations/virustotal';
+import { normalizerRegistry } from '../normalizers';
+import type { IntelligenceEvent } from '../../types/intelligence';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface OSINTResult {
   source: 'shodan' | 'alienvault' | 'virustotal';
   success: boolean;
   data?: any;
+  event?: IntelligenceEvent; // NEW: Normalized intelligence event
   error?: string;
   cached: boolean;
   timestamp: string;
@@ -109,24 +113,34 @@ export async function aggregateOSINTData(
 }
 
 /**
- * Query Shodan
+ * Query Shodan and normalize to IntelligenceEvent
  */
 async function queryShoda(target: string, type: string): Promise<OSINTResult> {
   const startTime = Date.now();
+  const traceId = uuidv4();
 
   try {
     let data;
     if (type === 'ip') {
-      data = await getShodanHost(target);
+      // For single host lookup, wrap in search response format
+      const hostData = await getShodanHost(target);
+      data = { matches: [hostData], total: 1 };
     } else {
       data = await searchShodan(target);
     }
+
+    // Normalize to canonical schema
+    const normalizer = normalizerRegistry.get('shodan');
+    const event = normalizer
+      ? normalizer.normalize(data, target, traceId)
+      : undefined;
 
     return {
       source: 'shodan',
       success: true,
       data,
-      cached: false, // Cache detection handled in integration layer
+      event, // NEW: Normalized intelligence event
+      cached: false,
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
@@ -135,21 +149,29 @@ async function queryShoda(target: string, type: string): Promise<OSINTResult> {
 }
 
 /**
- * Query AlienVault OTX
+ * Query AlienVault OTX and normalize to IntelligenceEvent
  */
 async function queryAlienVault(target: string, type: string): Promise<OSINTResult> {
+  const traceId = uuidv4();
+
   try {
     const indicatorType: IndicatorType = type === 'ip' ? 'ip' : type as IndicatorType;
     const general = await getAlienVaultGeneral(target, indicatorType);
     const malware = await getAlienVaultMalware(target, indicatorType);
 
+    const data = { general, malware };
+
+    // Normalize to canonical schema (use general data for primary normalization)
+    const normalizer = normalizerRegistry.get('alienvault');
+    const event = normalizer
+      ? normalizer.normalize(general, target, traceId)
+      : undefined;
+
     return {
       source: 'alienvault',
       success: true,
-      data: {
-        general,
-        malware
-      },
+      data,
+      event,
       cached: false,
       timestamp: new Date().toISOString()
     };
@@ -159,17 +181,26 @@ async function queryAlienVault(target: string, type: string): Promise<OSINTResul
 }
 
 /**
- * Query VirusTotal
+ * Query VirusTotal and normalize to IntelligenceEvent
  */
 async function queryVirusTotal(target: string, type: string): Promise<OSINTResult> {
+  const traceId = uuidv4();
+
   try {
     const resourceType: VirusTotalResourceType = type === 'ip' ? 'ip_address' : type as VirusTotalResourceType;
     const data = await getVirusTotalReport(target, resourceType);
+
+    // Normalize to canonical schema
+    const normalizer = normalizerRegistry.get('virustotal');
+    const event = normalizer
+      ? normalizer.normalize(data, target, traceId)
+      : undefined;
 
     return {
       source: 'virustotal',
       success: true,
       data,
+      event,
       cached: false,
       timestamp: new Date().toISOString()
     };

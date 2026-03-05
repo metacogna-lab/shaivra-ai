@@ -53,6 +53,11 @@ import { searchShodan, getShodanHost } from "./src/server/integrations/shodan";
 import { getAlienVaultGeneral } from "./src/server/integrations/alienvault";
 import { getVirusTotalReport } from "./src/server/integrations/virustotal";
 
+// Social Media Services
+import { aggregateSocialMedia, monitorUser } from "./src/server/services/socialMediaAggregator";
+import { searchTweets, getUserTweets, getTwitterUser } from "./src/server/integrations/twitter";
+import { searchReddit, searchSubreddit, getRedditUser } from "./src/server/integrations/reddit";
+
 dotenv.config();
 
 const app = express();
@@ -307,6 +312,107 @@ app.get("/api/osint/aggregate", authenticate, searchLimiter, validateQuery(osint
     res.json(report);
   } catch (error: any) {
     console.error('[OSINT Aggregate Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4c. Social Media: Twitter Search
+app.get("/api/social/twitter/search", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, max_results = 10 } = req.query;
+
+  try {
+    const data = await searchTweets(query as string, parseInt(max_results as string));
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_query',
+      resource: 'twitter',
+      details: { query, max_results },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Twitter Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4d. Social Media: Reddit Search
+app.get("/api/social/reddit/search", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, limit = 25, sort = 'relevance' } = req.query;
+
+  try {
+    const data = await searchReddit(query as string, parseInt(limit as string), sort as any);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_query',
+      resource: 'reddit',
+      details: { query, limit, sort },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Reddit Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4e. Social Media: Aggregated Search (Twitter + Reddit)
+app.get("/api/social/aggregate", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, platforms = 'twitter,reddit', limit = 25 } = req.query;
+
+  try {
+    const platformList = (platforms as string).split(',').filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
+
+    const data = await aggregateSocialMedia(
+      query as string,
+      platformList,
+      parseInt(limit as string)
+    );
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_aggregate',
+      resource: 'all',
+      details: { query, platforms: platformList, limit },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Social Media Aggregate Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4f. Social Media: User Monitoring
+app.get("/api/social/monitor/:username", authenticate, searchLimiter, async (req, res) => {
+  const { username } = req.params;
+  const { platforms = 'twitter,reddit' } = req.query;
+
+  try {
+    const platformList = (platforms as string).split(',').filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
+
+    const data = await monitorUser(username, platformList);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_monitor',
+      resource: 'user',
+      details: { username, platforms: platformList },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Social Media Monitor Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });

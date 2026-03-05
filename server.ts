@@ -38,6 +38,15 @@ import {
   signOutUser,
 } from "./src/server/auth/supabaseAuth";
 
+// Repositories
+import { projectRepository } from "./src/server/repositories/projectRepository";
+import { clipRepository } from "./src/server/repositories/clipRepository";
+import { searchHistoryRepository } from "./src/server/repositories/searchHistoryRepository";
+import { reportRepository } from "./src/server/repositories/reportRepository";
+import { investigationRepository } from "./src/server/repositories/investigationRepository";
+import { auditLogRepository } from "./src/server/repositories/auditLogRepository";
+import { graphRepository } from "./src/server/repositories/graphRepository";
+
 dotenv.config();
 
 const app = express();
@@ -66,36 +75,9 @@ const loadStrategy = () => {
 
 const coreStrategy = loadStrategy();
 
-// --- Master Graph & Intelligence Store ---
-let masterGraph: any = {
-  nodes: [],
-  links: [],
-  metadata: {
-    last_sync: new Date().toISOString(),
-    total_entities: 0,
-    total_links: 0
-  }
-};
-
-let dailyReports: any[] = [];
-let weeklyReports: any[] = [];
-let trends: any[] = [];
-
-// Helper to update master graph
-const updateMasterGraph = (newNodes: any[], newLinks: any[]) => {
-  newNodes.forEach(node => {
-    if (!masterGraph.nodes.find((n: any) => n.uuid === node.uuid)) {
-      masterGraph.nodes.push(node);
-    }
-  });
-  newLinks.forEach(link => {
-    if (!masterGraph.links.find((l: any) => l.source === link.source && l.target === link.target)) {
-      masterGraph.links.push(link);
-    }
-  });
-  masterGraph.metadata.total_entities = masterGraph.nodes.length;
-  masterGraph.metadata.total_links = masterGraph.links.length;
-  masterGraph.metadata.last_sync = new Date().toISOString();
+// Master Graph now in Neo4j
+const updateMasterGraph = async (newNodes: any[], newLinks: any[]) => {
+  await graphRepository.updateMasterGraph(newNodes, newLinks);
 };
 
 // --- Agent Network Logic ---
@@ -581,8 +563,14 @@ app.get("/api/admin/reports/daily", async (req, res) => {
     });
 
     const report = JSON.parse(response.text);
-    dailyReports.push(report);
-    
+
+    // Save to database
+    await reportRepository.create({
+      type: 'DAILY',
+      data: report,
+      summary: report.summary
+    });
+
     // Update Master Graph
     updateMasterGraph(report.graph_updates.nodes, report.graph_updates.links);
 
@@ -627,11 +615,12 @@ app.get("/api/admin/reports/weekly", async (req, res) => {
     });
 
     const report = JSON.parse(response.text);
-    weeklyReports.push(report);
-    
-    // Update trends
-    report.trend_predictions.forEach((tp: any) => {
-      trends.push({ ...tp, timestamp: new Date().toISOString() });
+
+    // Save to database
+    await reportRepository.create({
+      type: 'WEEKLY',
+      data: report,
+      summary: report.summary
     });
 
     res.json(report);
@@ -780,14 +769,30 @@ app.get("/api/stats", (req, res) => {
   });
 });
 
-// 22. Clip System: Save Information Board
-let clips: any[] = [];
-app.post("/api/clips", (req, res) => {
-  const clip = { id: `clip-${Date.now()}`, ...req.body, created_at: new Date().toISOString() };
-  clips.push(clip);
-  res.json(clip);
+// Clip System (PostgreSQL)
+app.post("/api/clips", authenticate, validateBody(clipSchema), async (req, res) => {
+  try {
+    const clip = await clipRepository.create({
+      title: req.body.title,
+      content: req.body.content,
+      source: req.body.source,
+      tags: req.body.tags,
+      userId: req.user!.userId
+    });
+    res.json(clip);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
-app.get("/api/clips", (req, res) => res.json(clips));
+
+app.get("/api/clips", authenticate, async (req, res) => {
+  try {
+    const clips = await clipRepository.findByUser(req.user!.userId);
+    res.json(clips);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // --- Organisation Profiling Store ---
 let orgProfiles: any[] = [];
@@ -926,23 +931,28 @@ app.post("/api/org/profile/update", (req, res) => {
   }
 });
 
-// --- Mock Data Store ---
-let projects: any[] = [
-  { id: 'p1', name: 'Project Phoenix', description: 'Energy sector monitoring', created_at: new Date().toISOString(), settings: { show_system_health: false, threat_velocity_threshold: 0.5 } }
-];
-let searchHistory: any[] = [];
+// Projects Management (PostgreSQL)
+app.get("/api/projects", authenticate, async (req, res) => {
+  try {
+    const projects = await projectRepository.findByUser(req.user!.userId);
+    res.json(projects);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-// 14. Projects Management
-app.get("/api/projects", (req, res) => res.json(projects));
-app.post("/api/projects", (req, res) => {
-  const newProject = { 
-    id: `proj-${Math.random().toString(36).substr(2, 9)}`, 
-    ...req.body, 
-    created_at: new Date().toISOString(),
-    settings: { show_system_health: false, threat_velocity_threshold: 0.5 }
-  };
-  projects.push(newProject);
-  res.json(newProject);
+app.post("/api/projects", authenticate, validateBody(projectSchema), async (req, res) => {
+  try {
+    const project = await projectRepository.create({
+      name: req.body.name,
+      description: req.body.description,
+      settings: req.body.settings || {},
+      userId: req.user!.userId
+    });
+    res.json(project);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 15. Search History
@@ -995,7 +1005,18 @@ app.post("/api/ingestion/advanced", async (req, res) => {
       
       await traceAgentAction("advanced_ingestion", { target, sources: prioritizedSources }, { results_count: results.length });
 
-      searchHistory.push({
+      // Save to database (requires userId from auth)
+      if (req.user) {
+        await searchHistoryRepository.create({
+          query: target,
+          results: { results_count: results.length, sources: prioritizedSources },
+          source: 'advanced_ingestion',
+          metadata: { project_id: projectId },
+          userId: req.user.userId
+        });
+      }
+
+      const historyEntry = {
         id: `h-${Date.now()}`,
         query: target,
         timestamp: new Date().toISOString(),

@@ -4,7 +4,13 @@
       "Bash(bun add:*)",
       "Bash(npx prisma init:*)",
       "Bash(npx prisma generate:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(echo:*)",
+      "Bash(bun test:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)"
     ]
   }
 }

@@ -1,0 +1,332 @@
+---
+title: "Quickstart"
+description: "Get up and running with Shaivra Intelligence Suite in 5 minutes"
+sidebarTitle: "Quickstart"
+---
+
+## What You'll Accomplish
+
+In this quickstart, you'll:
+1. Install dependencies
+2. Configure API keys
+3. Start the development server
+4. Make your first intelligence gathering request
+5. View results in the knowledge graph
+
+**Time to complete:** 5 minutes
+
+## Prerequisites
+
+<Steps>
+  <Step title="Node.js 18+ and Bun">
+    Install Bun package manager:
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+  </Step>
+
+  <Step title="Google Gemini API Key">
+    Get your free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+  </Step>
+
+  <Step title="OSINT API Keys (Optional)">
+    For production use, sign up for:
+    - [Shodan](https://account.shodan.io/register) - Infrastructure scanning
+    - [VirusTotal](https://www.virustotal.com/gui/join-us) - Threat intelligence
+    - [AlienVault OTX](https://otx.alienvault.com/api) - Threat feeds
+
+    **Note:** System works with mock data if API keys not provided.
+  </Step>
+</Steps>
+
+## Installation
+
+<Steps>
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/metacogna/shaivra-intelligence-suite.git
+    cd shaivra-intelligence-suite
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    ```bash
+    bun install
+    ```
+  </Step>
+
+  <Step title="Configure Environment">
+    Copy the example environment file:
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` and add your API keys:
+    ```bash
+    # Required
+    GEMINI_API_KEY=your_gemini_api_key_here
+
+    # Optional (system uses mocks if not provided)
+    SHODAN_API_KEY=your_shodan_key_here
+    VIRUSTOTAL_API_KEY=your_virustotal_key_here
+    ALIENVAULT_API_KEY=your_alienvault_key_here
+
+    # Optional (for observability)
+    LANGSMITH_API_KEY=your_langsmith_key_here
+    ```
+  </Step>
+
+  <Step title="Start Development Server">
+    ```bash
+    bun run dev
+    ```
+
+    The application will start on [http://localhost:3000](http://localhost:3000)
+  </Step>
+</Steps>
+
+## Make Your First Request
+
+### Using the API
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:3000/api/intelligence/gather \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "example.com",
+    "mode": "fast"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch('/api/intelligence/gather', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    target: 'example.com',
+    mode: 'fast'
+  })
+});
+
+const result = await response.json();
+console.log(`Gathered ${result.events.length} intelligence events`);
+console.log(`Found ${result.metadata.totalEntities} entities`);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:3000/api/intelligence/gather',
+    json={
+        'target': 'example.com',
+        'mode': 'fast'
+    }
+)
+
+result = response.json()
+print(f"Gathered {len(result['events'])} intelligence events")
+print(f"Found {result['metadata']['totalEntities']} entities")
+```
+
+</CodeGroup>
+
+### Expected Response
+
+```json
+{
+  "target": "example.com",
+  "entityType": "infrastructure",
+  "toolsUsed": ["shodan", "virustotal"],
+  "events": [
+    {
+      "id": "evt-001",
+      "tool": "shodan",
+      "target": "example.com",
+      "status": "success",
+      "entities": [
+        {
+          "id": "ent-001",
+          "type": "infrastructure",
+          "name": "93.184.216.34",
+          "confidence": 0.95
+        }
+      ],
+      "observations": [
+        {
+          "id": "obs-001",
+          "entityId": "ent-001",
+          "property": "open_port",
+          "value": { "port": 443, "service": "HTTPS" },
+          "confidence": 0.95
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "executionTime": 2500,
+    "successfulTools": 2,
+    "totalEntities": 2,
+    "totalObservations": 8
+  }
+}
+```
+
+## Using the Web UI
+
+<Steps>
+  <Step title="Navigate to Portal">
+    Visit [http://localhost:3000/portal](http://localhost:3000/portal)
+  </Step>
+
+  <Step title="Login">
+    Use demo credentials:
+    - Username: `shaivra-ai`
+    - Password: `ShaivraAdmin345%`
+
+    :::warning
+    These are demo credentials. Replace with real authentication in production.
+    :::
+  </Step>
+
+  <Step title="Access Intelligence Lens">
+    Click **Lens** in the sidebar to access the intelligence gathering pipeline.
+  </Step>
+
+  <Step title="Run Investigation">
+    1. Enter a target (domain, IP, username, organization)
+    2. Select gathering mode (Fast/Comprehensive)
+    3. Click **Start Investigation**
+    4. View results in the knowledge graph
+  </Step>
+</Steps>
+
+## Verify Setup
+
+Check that all systems are operational:
+
+<AccordionGroup>
+  <Accordion title="Check Tool Registry">
+    ```bash
+    curl http://localhost:3000/api/intelligence/tools
+    ```
+
+    Should return 5 available tools:
+    ```json
+    {
+      "total": 5,
+      "tools": ["shodan", "virustotal", "alienvault", "twitter", "reddit"]
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Test Tool Selection">
+    ```bash
+    curl -X POST http://localhost:3000/api/intelligence/select-tools \
+      -H "Content-Type: application/json" \
+      -d '{"target": "example.com"}'
+    ```
+
+    Should auto-detect entity type and select appropriate tools:
+    ```json
+    {
+      "target": "example.com",
+      "selectedTools": ["shodan", "virustotal", "alienvault"],
+      "count": 3
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Verify Normalization">
+    Make a gathering request and verify the response contains:
+    - `events[].entities` - Discovered entities with confidence scores
+    - `events[].observations` - Facts about entities
+    - `events[].relationships` - Entity connections
+    - `metadata` - Execution statistics
+
+    All events should follow the canonical IntelligenceEvent schema.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore Architecture" icon="sitemap" href="/architecture">
+    Understand how the system works
+  </Card>
+  <Card title="Tool Selection" icon="filter" href="/osint/tool-selection">
+    Learn about intelligent tool selection
+  </Card>
+  <Card title="Canonical Schema" icon="database" href="/osint/canonical-schema">
+    Deep dive into the data model
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/intelligence-gathering">
+    Complete API documentation
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Port 3000 already in use">
+    **Solution:** Change the port in server.ts or kill the conflicting process:
+    ```bash
+    lsof -ti:3000 | xargs kill -9
+    ```
+  </Accordion>
+
+  <Accordion title="API keys not working">
+    **Cause:** Keys not loaded from .env file
+
+    **Solution:** Ensure `.env` is in project root and restart server:
+    ```bash
+    # Verify .env exists
+    cat .env | grep GEMINI_API_KEY
+
+    # Restart server
+    bun run dev
+    ```
+  </Accordion>
+
+  <Accordion title="Tools return mock data">
+    **Cause:** Optional API keys not configured
+
+    **Solution:** This is expected behavior. The system works with mock data for development. Add real API keys to `.env` for production use.
+  </Accordion>
+
+  <Accordion title="TypeScript errors">
+    **Solution:** Regenerate types:
+    ```bash
+    bun run lint
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Production Deployment
+
+**Warning:** This quickstart uses demo authentication. Before deploying to production:
+
+1. Replace mock authentication with [Supabase](https://supabase.com) or [Auth0](https://auth0.com)
+2. Add input validation with [Zod](https://zod.dev)
+3. Configure rate limiting
+4. Enable HTTPS/SSL
+5. Set up persistent storage (PostgreSQL + Neo4j)
+6. Add monitoring (Sentry, DataDog)
+
+See [Deployment Guide](/operations/deployment) for complete checklist.
+
+## Getting Help
+
+<CardGroup cols={3}>
+  <Card title="Documentation" icon="book" href="/introduction">
+    Browse full documentation
+  </Card>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/metacogna/shaivra-intelligence-suite/issues">
+    Report bugs or request features
+  </Card>
+  <Card title="Discussions" icon="comments" href="https://github.com/metacogna/shaivra-intelligence-suite/discussions">
+    Ask questions and get help
+  </Card>
+</CardGroup>

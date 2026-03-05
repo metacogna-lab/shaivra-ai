@@ -105,6 +105,14 @@ vi.mock('../../src/server/repositories/graphRepository', () => ({
   graphRepository: mockGraphRepository
 }));
 
+/** Mock LLM client so routes get a controlled response (avoids @google/genai SDK shape/import issues). */
+const mockCallTrackedGemini = vi.fn();
+const defaultLineage = { traceId: 't', transactionId: 'tx', lineageHash: 'h' };
+vi.mock('../../src/server/services/llmClient', () => ({
+  callTrackedGemini: mockCallTrackedGemini,
+  ensureTransactionId: (x?: string) => x || 'txn-mock'
+}));
+
 let app: Express;
 
 beforeAll(async () => {
@@ -163,6 +171,7 @@ const originalEnv = {
 
 afterEach(() => {
   mockGenerateContent.mockReset();
+  mockCallTrackedGemini.mockReset();
   mockFetch.mockReset();
   mockSearchShodan.mockReset();
   mockGetShodanHost.mockReset();
@@ -187,17 +196,20 @@ describe('POST /api/search', () => {
 
   it('returns AI results when configured', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
-    mockGenerateContent.mockResolvedValue({
-      text: 'analysis',
-      candidates: [
-        {
-          groundingMetadata: {
-            groundingChunks: [
-              { web: { title: 'Doc', uri: 'https://example.com' } }
-            ]
+    mockCallTrackedGemini.mockResolvedValue({
+      response: {
+        text: 'analysis',
+        candidates: [
+          {
+            groundingMetadata: {
+              groundingChunks: [
+                { web: { title: 'Doc', uri: 'https://example.com' } }
+              ]
+            }
           }
-        }
-      ]
+        ]
+      },
+      lineage: defaultLineage
     });
 
     const response = await request(app).post('/api/search').send({ query: 'targets' });
@@ -238,22 +250,29 @@ describe('GET /api/osint/fingerprint', () => {
 
   it('returns inferred fingerprint when configured', async () => {
     process.env.GEMINI_API_KEY = 'fingerprint-key';
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        stack: ['Next.js', 'Node.js'],
-        architecture: 'Edge',
-        api_endpoints: ['/api/search'],
-        cloud_assets: ['Cloudflare'],
-        vulnerabilities: ['Leaky robots.txt']
-      })
+    const fingerprint = {
+      stack: ['Next.js', 'Node.js'],
+      architecture: 'Edge',
+      api_endpoints: ['/api/search'],
+      cloud_assets: ['Cloudflare'],
+      vulnerabilities: ['Leaky robots.txt']
+    };
+    mockCallTrackedGemini.mockResolvedValue({
+      response: { text: JSON.stringify(fingerprint) },
+      lineage: defaultLineage
     });
 
     const response = await request(app).get('/api/osint/fingerprint').query({ url: 'https://example.com' });
     expect(response.status).toBe(200);
     expect(response.body.stack).toContain('Next.js');
-    expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
-      contents: expect.stringContaining('https://example.com')
-    }));
+    expect(mockCallTrackedGemini).toHaveBeenCalledWith(
+      'fingerprint-site',
+      expect.objectContaining({
+        contents: expect.stringContaining('https://example.com')
+      }),
+      expect.any(String),
+      expect.any(Object)
+    );
   });
 });
 
@@ -294,16 +313,18 @@ describe('POST /api/forge/analyze', () => {
 
   it('returns synthesized analysis when configured', async () => {
     process.env.GEMINI_API_KEY = 'forge-key';
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        consensus_summary: 'Aligned summary',
-        probability_assessment: 0.82,
-        corroborated_findings: ['Finding'],
-        contradictions_flagged: [],
-        source_weighting: { lens: 0.6, global_graph: 0.4 },
-        strategic_recommendation: 'Proceed',
-        generated_scenarios: []
-      })
+    const forgePayload = {
+      consensus_summary: 'Aligned summary',
+      probability_assessment: 0.82,
+      corroborated_findings: ['Finding'],
+      contradictions_flagged: [],
+      source_weighting: { lens: 0.6, global_graph: 0.4 },
+      strategic_recommendation: 'Proceed',
+      generated_scenarios: []
+    };
+    mockCallTrackedGemini.mockResolvedValue({
+      response: { text: JSON.stringify(forgePayload) },
+      lineage: defaultLineage
     });
 
     const response = await request(app).post('/api/forge/analyze').send({
@@ -321,14 +342,16 @@ describe('POST /api/forge/analyze', () => {
 describe('Agent investigations API', () => {
   it('creates an investigation and returns completed status', async () => {
     process.env.GEMINI_API_KEY = 'agent-key';
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        new_certainty: 90,
-        new_findings: { report: 'Complete' },
-        citations: [],
-        logs: ['done'],
-        is_satisfied: true
-      })
+    const agentResult = {
+      new_certainty: 90,
+      new_findings: { report: 'Complete' },
+      citations: [] as any[],
+      logs: ['done'],
+      is_satisfied: true
+    };
+    mockCallTrackedGemini.mockResolvedValue({
+      response: { text: JSON.stringify(agentResult) },
+      lineage: defaultLineage
     });
 
     const response = await request(app)
@@ -338,7 +361,7 @@ describe('Agent investigations API', () => {
     expect(response.status).toBe(200);
     expect(response.body.runId).toMatch(/run-/);
 
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     const status = await request(app).get(`/api/agent/investigate/${response.body.runId}`);
     expect(status.status).toBe(200);
@@ -390,7 +413,10 @@ describe('POST /api/summarize', () => {
   });
   it('returns summary when configured', async () => {
     process.env.GEMINI_API_KEY = 'key';
-    mockGenerateContent.mockResolvedValue({ text: 'Summary of OSINT data.' });
+    mockCallTrackedGemini.mockResolvedValue({
+      response: { text: 'Summary of OSINT data.' },
+      lineage: defaultLineage
+    });
     const res = await request(app).post('/api/summarize').send({ data: { items: [] }, target: 'Example' });
     expect(res.status).toBe(200);
     expect(res.body.summary).toBe('Summary of OSINT data.');
@@ -405,23 +431,29 @@ describe('POST /api/report', () => {
   });
   it('returns report with summary and key_findings when configured', async () => {
     process.env.GEMINI_API_KEY = 'key';
-    const agentResult = JSON.stringify({
+    const agentPayload = {
       new_certainty: 90,
       new_findings: {},
-      citations: [],
+      citations: [] as any[],
       logs: ['Done'],
-      is_satisfied: true,
-    });
-    const reportJson = JSON.stringify({
+      is_satisfied: true
+    };
+    const reportPayload = {
       title: 'Report',
       summary: 'Executive summary',
       key_findings: ['Finding 1'],
       risk_assessment: 'Low',
-      strategic_actions: ['Action 1'],
-    });
-    mockGenerateContent
-      .mockResolvedValueOnce({ text: agentResult })
-      .mockResolvedValueOnce({ text: reportJson });
+      strategic_actions: ['Action 1']
+    };
+    mockCallTrackedGemini
+      .mockResolvedValueOnce({
+        response: { text: JSON.stringify(agentPayload) },
+        lineage: defaultLineage
+      })
+      .mockResolvedValueOnce({
+        response: { text: JSON.stringify(reportPayload) },
+        lineage: defaultLineage
+      });
     const res = await request(app).post('/api/report').send({ pipelineData: {}, target: 'Target Corp' });
     expect(res.status).toBe(200);
     expect(res.body.summary).toBe('Executive summary');
@@ -480,8 +512,22 @@ describe('POST /api/ingestion/advanced', () => {
   });
   it('returns job_ids and data when configured', async () => {
     process.env.GEMINI_API_KEY = 'key';
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify([{ uuid: 'u1', entity_name: 'E1', entity_type: 'Org', relationship: 'OWNS', confidence_score: 0.9, source_origin: 'Web', strategic_value: 'High', adversarial_potential: 0.2, competitor_status: 'neutral' }]),
+    const entities = [
+      {
+        uuid: 'u1',
+        entity_name: 'E1',
+        entity_type: 'Org',
+        relationship: 'OWNS',
+        confidence_score: 0.9,
+        source_origin: 'Web',
+        strategic_value: 'High',
+        adversarial_potential: 0.2,
+        competitor_status: 'neutral'
+      }
+    ];
+    mockCallTrackedGemini.mockResolvedValue({
+      response: { text: JSON.stringify(entities) },
+      lineage: defaultLineage
     });
     const res = await request(app).post('/api/ingestion/advanced').send({ query: 'Target', sources: [] });
     expect(res.status).toBe(200);

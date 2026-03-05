@@ -46,6 +46,16 @@ This file serves as shared memory to prevent implementation drift and conflictin
 
 **Added:** Unit tests for portal and knowledge-graph contracts, playbook service, OSINT aggregator (in `tests/server/`); contract-validated portalApi tests; server API tests for summarize, report, osint/aggregate, ingestion/advanced, projects, admin/reports/daily|weekly, graph/master; integration tests for portal API contracts (MSW + schema validation). Fixtures: `tests/fixtures/portalDummyData.ts`, `tests/fixtures/intelligenceDummyData.ts`. Full suite: 144 passed, 1 skipped. Redis ECONNREFUSED in stderr (non-fatal); four endpoints accept 200 or 500 when Redis/masterGraph not available.
 
+### 2026-03-05 - API test 500s fixed (mock target)
+
+**Branch:** `feature/initphase-api-test-fixes`
+
+**Cause:** Seven tests (search, fingerprint, forge/analyze, agent/investigate, summarize, report, ingestion/advanced) were asserting 200 but got 500. Handlers use `callTrackedGemini` from `llmClient`, not `@google/genai` directly; mocking `@google/genai` did not reliably provide the response shape those routes expect.
+
+**Change:** Mock `src/server/services/llmClient` in `tests/server/api.test.ts`: `callTrackedGemini` is replaced with `mockCallTrackedGemini`, and each affected test sets `mockCallTrackedGemini.mockResolvedValue({ response: { text: ... }, lineage })` (or `mockResolvedValueOnce` for report’s two-step flow). Agent investigate test uses the same mock so the background `runAgentNetwork` receives a single satisfied result and status becomes `completed`.
+
+**Result:** Full suite 172 passed, 1 skipped.
+
 ## Unresolved Issues
 
 None yet.

@@ -51,6 +51,12 @@ None yet.
 
 **Links:** [skills/SKILLS_BEST_PRACTICES.md](../skills/SKILLS_BEST_PRACTICES.md), [skills/orchestrator/references/pipeline.md](../skills/orchestrator/references/pipeline.md), [skills/orchestrator/references/ai_orchestration.md](../skills/orchestrator/references/ai_orchestration.md).
 
+## Separation of concerns / ingestion integration
+
+**Decision:** Keep a single pipeline (ingest → normalize → enrich) and four clear boundaries: (1) project/user investigation ingestion, (2) knowledge-base (Memgraph) ingestion, (3) agent network (consumes normalized data; does not ingest), (4) skills (execution layer; caller decides persistence). New backend work should respect and enhance the full implemented pipeline steps (Lens and PipelineMonitor); mocks can be replaced incrementally.
+
+**Reference:** [docs/ingestion-and-concerns.md](../docs/ingestion-and-concerns.md) — four concerns, full pipeline steps, schemas/contracts for public API data (IntelligenceEvent, normalizers, OSINTResult, portalTypes, Zod), core pipeline and where advanced ingestion / normalizers / graphRepository fit, integration points for frontend, Memgraph, agent network, and skills.
+
 ## Completed Milestones
 
 - ✅ **Mintlify skill + MCP:** Skill installed via `npx skills add https://mintlify.com/docs --yes --global` (to `~/.agents/skills/mintlify`, Cursor + others). Project MCP at `.cursor/mcp.json` with `https://mintlify.com/docs/mcp`. Restart Cursor to load MCP.
@@ -103,6 +109,27 @@ None yet.
   4. Returns both raw data (backward compat) and normalized event
 - Trace IDs generated per query using UUIDv4
 - All existing API consumers still work (raw data field preserved)
+
+## 2026-03-05 - Contributor Guide Alignment
+
+### Decision: Added `AGENTS.md` contributor guide
+- Captures repo layout (React client in `src/`, Express API in `server.ts`, Prisma, skills/langgraph/infra trees).
+- Documents Bun-first workflows (`bun install`, `bun run dev/test/lint`, `bunx prisma ...`) so every agent uses the same package manager.
+- Re-emphasizes existing design system constraints and security middleware expectations for any new code paths.
+
+### Pending Work
+- Draft explicit frontend/backend contracts for current features so agents can coordinate without touching visual components.
+- Validate whether additional test coverage guidance is required for OSINT pipelines before Phase 2B work starts.
+
+### Decision: Formalized design system reference (`docs/design-system.md`)
+- Captures palette, typography, background layers, CTA/button treatments, and portal layout conventions extracted from current components (`Navigation`, `Hero`, `RequestAccessModal`, `PortalLayout`, `KnowledgeGraphExplorer`).
+- Locking the Tailwind tokens defined in `index.html` as canonical; changes require design review before code modifications.
+- Adds implementation checklist for future UI builds and instructs agents to log deviations here before merging.
+
+### Decision: Agent rule file for design enforcement (`tasks/agent-design-rules.md`)
+- Summarizes cardinal rules (palette discipline, typography, background stack integrity, component reuse, accessibility) and points agents back to `docs/design-system.md`.
+- All new UI work must cite the rule file plus the design guide; deviations require a note here prior to merge.
+- Cross-linked the rule in `AGENTS.md` and `CLAUDE.md` to ensure every contributor sees the requirement.
 
 ## Next Steps
 

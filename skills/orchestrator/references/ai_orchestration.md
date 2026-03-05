@@ -44,6 +44,10 @@ Any AI orchestrator can invoke the same commands without tool-specific glue.
 
 All three should produce the same outputs (`entity_graph.json`, `narrative_simulation.json`, `threat_surface.json`, `intelligence_report.md`) for the same inputs.
 
+## Persistence
+
+When an AI orchestrator runs the skill pipeline (unified driver or individual scripts), **persistence to the app is the caller’s responsibility**. Skills produce JSON output (entity_graph, narrative_simulation, threat_surface, etc.); they do not write to the project DB or Memgraph. To persist into the Shaivra app (project history or knowledge base), the caller must feed that output through the app’s ingest→normalize→enrich pipeline—e.g. via a future API that accepts pipeline output and runs it through that path. See [docs/ingestion-and-concerns.md](../../../docs/ingestion-and-concerns.md) for separation of concerns and integration points.
+
 ## Security and boundaries
 
 - Orchestrators run in the same security context as the developer (or CI). No elevated privileges by default.

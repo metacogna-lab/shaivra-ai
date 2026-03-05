@@ -2,6 +2,16 @@
 
 This file serves as shared memory to prevent implementation drift and conflicting decisions.
 
+## 2026-03-05 - Merge completion (main)
+
+**Merged into `main` (in order):**
+1. `feature/initphase-investigation-flow` — narrative/gap agents, integrity, 7-step flow, adapter validation, investigation budget, graph structural integrity, new tests.
+2. `feature/initphase-db-migrations` — Prisma init migration, `intelligenceEventRepository`, bridge and tests.
+
+**Post-merge fix (global-graph):** Added missing ontology modules so graph integrity tests run: `global-graph/ontology/objectTypes.ts`, `global-graph/ontology/linkTypes.ts`, `global-graph/ontology/intelligenceEventSchema.ts`. `bun test tests/global-graph/validation/graphIntegrity.test.ts` — 10/10 pass.
+
+**Test state:** Full suite 179 pass, 16 fail (pre-existing: React `document` env in Vitest, portal API mocks, Lens/ingestion stubs). See CLAUDE.md / bridge for known gaps.
+
 ## 2026-03-05 - Initphase: Contracts, Backend, and Database Migrations
 
 **Branch:** `feature/initphase-db-migrations`

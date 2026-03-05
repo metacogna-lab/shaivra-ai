@@ -27,6 +27,5 @@ dist-ssr
 
 /src/generated/prisma
 .env
+.env.local
 node_modules/
-.env.prod
-.env.dev

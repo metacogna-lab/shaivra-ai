@@ -58,6 +58,23 @@ import { aggregateSocialMedia, monitorUser } from "./src/server/services/socialM
 import { searchTweets, getUserTweets, getTwitterUser } from "./src/server/integrations/twitter";
 import { searchReddit, searchSubreddit, getRedditUser } from "./src/server/integrations/reddit";
 
+// CLI Tool Services
+import {
+  queueSherlockSearch,
+  queueTheHarvesterSearch,
+  getJobStatus,
+  getQueueStats,
+  sherlockQueue,
+  theharvesterQueue
+} from "./src/server/services/cliOrchestrator";
+import { checkSherlockHealth } from "./src/server/integrations/sherlock";
+import { checkTheHarvesterHealth, getAvailableSources } from "./src/server/integrations/theharvester";
+
+// Bull Board (job queue dashboard)
+import { createBullBoard } from '@bull-board/api';
+import { BullAdapter } from '@bull-board/api/bullAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+
 dotenv.config();
 
 const app = express();
@@ -70,6 +87,21 @@ app.use(express.json({ limit: '10mb' })); // Limit payload size
 
 // Apply global rate limiter to all routes
 app.use('/api/', globalLimiter);
+
+// --- Bull Board Dashboard (Job Queue Monitoring) ---
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+createBullBoard({
+  queues: [
+    new BullAdapter(sherlockQueue),
+    new BullAdapter(theharvesterQueue)
+  ],
+  serverAdapter
+});
+
+// Protected Bull Board route (admin only)
+app.use('/admin/queues', adminOnly, serverAdapter.getRouter());
 
 // --- Strategy Integration ---
 const loadStrategy = () => {
@@ -413,6 +445,116 @@ app.get("/api/social/monitor/:username", authenticate, searchLimiter, async (req
     res.json(data);
   } catch (error: any) {
     console.error('[Social Media Monitor Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4g. CLI Tools: Sherlock Username Search (queued job)
+app.post("/api/cli/sherlock", authenticate, searchLimiter, async (req, res) => {
+  const { username } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ error: 'username required' });
+  }
+
+  try {
+    const job = await queueSherlockSearch(username);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'cli_tool_sherlock',
+      resource: 'username',
+      details: { username, job_id: job.id },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({
+      message: 'Sherlock job queued',
+      job_id: job.id,
+      status_url: `/api/cli/job/${job.id}`,
+      queue: 'sherlock'
+    });
+  } catch (error: any) {
+    console.error('[Sherlock Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4h. CLI Tools: TheHarvester Domain Harvest (queued job)
+app.post("/api/cli/theharvester", authenticate, searchLimiter, async (req, res) => {
+  const { domain, source = 'google', limit = 500 } = req.body;
+
+  if (!domain) {
+    return res.status(400).json({ error: 'domain required' });
+  }
+
+  try {
+    const job = await queueTheHarvesterSearch(domain, source, limit);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'cli_tool_theharvester',
+      resource: 'domain',
+      details: { domain, source, limit, job_id: job.id },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({
+      message: 'TheHarvester job queued',
+      job_id: job.id,
+      status_url: `/api/cli/job/${job.id}`,
+      queue: 'theharvester',
+      available_sources: getAvailableSources()
+    });
+  } catch (error: any) {
+    console.error('[TheHarvester Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4i. CLI Tools: Get Job Status
+app.get("/api/cli/job/:jobId", authenticate, async (req, res) => {
+  const { jobId } = req.params;
+  const { queue = 'sherlock' } = req.query;
+
+  try {
+    const targetQueue = queue === 'theharvester' ? theharvesterQueue : sherlockQueue;
+    const status = await getJobStatus(targetQueue, jobId);
+
+    res.json(status);
+  } catch (error: any) {
+    console.error('[CLI Job Status Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4j. CLI Tools: Get Queue Statistics
+app.get("/api/cli/stats", authenticate, async (req, res) => {
+  try {
+    const [sherlockStats, theharvesterStats] = await Promise.all([
+      getQueueStats(sherlockQueue),
+      getQueueStats(theharvesterQueue)
+    ]);
+
+    const [sherlockHealth, theharvesterHealth] = await Promise.all([
+      checkSherlockHealth(),
+      checkTheHarvesterHealth()
+    ]);
+
+    res.json({
+      queues: {
+        sherlock: sherlockStats,
+        theharvester: theharvesterStats
+      },
+      health: {
+        sherlock: sherlockHealth,
+        theharvester: theharvesterHealth
+      }
+    });
+  } catch (error: any) {
+    console.error('[CLI Stats Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });

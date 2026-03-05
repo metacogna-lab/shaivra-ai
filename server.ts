@@ -250,6 +250,9 @@ app.post("/api/search",
 app.get("/api/osint/shodan", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'search' } = req.query;
 
+  if (!process.env.SHODAN_API_KEY) {
+    return res.status(400).json({ error: 'SHODAN_API_KEY is not configured' });
+  }
   try {
     let data;
     if (type === 'host') {
@@ -271,6 +274,10 @@ app.get("/api/osint/shodan", authenticate, searchLimiter, validateQuery(osintQue
     res.json(data);
   } catch (error: any) {
     console.error('[Shodan Endpoint]', error);
+    const msg = error?.message ?? '';
+    if (msg.includes('SHODAN_API_KEY') && msg.includes('not configured')) {
+      return res.status(400).json({ error: msg });
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -279,6 +286,9 @@ app.get("/api/osint/shodan", authenticate, searchLimiter, validateQuery(osintQue
 app.get("/api/osint/alienvault", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'domain' } = req.query;
 
+  if (!process.env.ALIENVAULT_API_KEY) {
+    return res.status(400).json({ error: 'ALIENVAULT_API_KEY is not configured' });
+  }
   try {
     const data = await getAlienVaultGeneral(query as string, type as any);
 
@@ -295,6 +305,10 @@ app.get("/api/osint/alienvault", authenticate, searchLimiter, validateQuery(osin
     res.json(data);
   } catch (error: any) {
     console.error('[AlienVault Endpoint]', error);
+    const msg = String(error?.message ?? '');
+    if (/ALIENVAULT_API_KEY.*not configured|not configured.*ALIENVAULT_API_KEY/i.test(msg)) {
+      return res.status(400).json({ error: msg });
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -303,6 +317,9 @@ app.get("/api/osint/alienvault", authenticate, searchLimiter, validateQuery(osin
 app.get("/api/osint/virustotal", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'domain' } = req.query;
 
+  if (!process.env.VIRUSTOTAL_API_KEY) {
+    return res.status(400).json({ error: 'VIRUSTOTAL_API_KEY is not configured' });
+  }
   try {
     const data = await getVirusTotalReport(query as string, type as any);
 
@@ -319,6 +336,10 @@ app.get("/api/osint/virustotal", authenticate, searchLimiter, validateQuery(osin
     res.json(data);
   } catch (error: any) {
     console.error('[VirusTotal Endpoint]', error);
+    const msg = String(error?.message ?? '');
+    if (/VIRUSTOTAL_API_KEY.*not configured|not configured.*VIRUSTOTAL_API_KEY/i.test(msg)) {
+      return res.status(400).json({ error: msg });
+    }
     res.status(500).json({ error: error.message });
   }
 });

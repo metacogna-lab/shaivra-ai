@@ -90,12 +90,12 @@ export const forgeAnalysisSchema = z.object({
   traceId: z.string().uuid().optional(),
 });
 
-// OSINT Schemas
+// OSINT Schemas (query param used by /api/osint/* and /api/social/*)
 export const osintQuerySchema = z.object({
-  target: z.string()
-    .min(1, 'Target required')
-    .max(200, 'Target too long'),
-  type: z.enum(['ip', 'domain', 'hash', 'url', 'email']).optional(),
+  query: z.string()
+    .min(1, 'Query required')
+    .max(200, 'Query too long'),
+  type: z.enum(['ip', 'domain', 'hash', 'url', 'email', 'search', 'host']).optional(),
 });
 
 export const fingerprintSchema = z.object({

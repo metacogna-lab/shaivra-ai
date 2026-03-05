@@ -1,5 +1,6 @@
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
+import { GoogleGenAI } from '@google/genai';
 import { callTrackedGemini, ensureTransactionId, LineageInfo } from './llmClient';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../storage/s3Client';
@@ -257,7 +258,11 @@ Generate a final comprehensive analysis with:
       risk_score: analysis.risk_score || 0,
       recommendations: analysis.recommendations || [],
       full_text_length: parsed.text.length,
-      analyzed_at: new Date().toISOString()
+      analyzed_at: new Date().toISOString(),
+      lineage: {
+        chunks: [],
+        summary: { traceId: 'document-analysis', transactionId: 'doc-' + Date.now(), lineageHash: '' }
+      }
     };
   } catch (error: any) {
     console.error('[Document Analysis] Failed:', error);

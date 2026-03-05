@@ -1313,7 +1313,7 @@ app.post("/api/org/profile", async (req, res) => {
         config: { responseMimeType: "application/json" }
       }, jobId, { orgName, objective, stage: 'synthesis' });
       
-      const synthesized = JSON.parse(synthesisResponse.text);
+      const synthesized = JSON.parse(synthesisCall.response.text);
       
       // SEED AGENT NETWORK: Final refinement until 80% certainty
       newJob.status = 'alignment';

@@ -104,12 +104,8 @@ router.get('/investigation/:investigationUUID/audit', authenticate, async (req: 
   const formatParam = (Array.isArray(req.query.format) ? req.query.format[0] : req.query.format) || 'json';
 
   try {
-    // @ts-ignore - Express type definitions don't properly infer userId as string
-    const audit = await exportInvestigationAudit(
-      investigationUUID,
-      req.user?.userId || '',
-      formatParam as 'json' | 'csv'
-    );
+    // @ts-ignore - Express type definitions don't properly infer query parameters as strings
+    const audit = await exportInvestigationAudit(investigationUUID, req.user?.userId || '', formatParam as 'json' | 'csv');
 
     res.set('Content-Type', formatParam === 'csv' ? 'text/csv' : 'application/json');
     res.set('Content-Disposition', `attachment; filename="audit-${investigationUUID}.${formatParam === 'csv' ? 'csv' : 'json'}"`);

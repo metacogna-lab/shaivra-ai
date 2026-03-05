@@ -1,7 +1,12 @@
-# Zero Knowledge Architecture Plan
+---
+title: Zero Knowledge Architecture Plan
+description: Strategy for delivering end-to-end encrypted, Zero Trust operations across Shaivra’s infrastructure.
+sidebarTitle: Zero Trust
+badge: Roadmap
+---
 
-## Overview
-This document outlines the strategic plan for implementing a Zero Knowledge (ZK) architecture for the Shaivra Intelligence Suite, leveraging Cloudflare's edge capabilities and Google Cloud Run's scalable compute.
+## Outcome
+Understand the phases required to reach a Zero Knowledge posture using Cloudflare Zero Trust, Google Cloud confidential compute, and privacy-preserving ingestion.
 
 ## Core Principles
 1. **End-to-End Encryption**: All intelligence data is encrypted on the client or at the ingestion edge before reaching the core processing layers.

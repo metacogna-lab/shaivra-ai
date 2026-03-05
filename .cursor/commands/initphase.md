@@ -1,0 +1,1 @@
+Always start with a new feature branch, write tests, work, test, commit, merge. Record state in @tasks/bridge.md. Follow rules and create new commands where necessary for repetitive work.

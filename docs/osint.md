@@ -1,6 +1,12 @@
-# OSINT Capability Review
+---
+title: OSINT Capability Review
+description: Map today’s OSINT stack, identify the gaps, and plan the open-source tooling roadmap for Shaivra.
+sidebarTitle: OSINT
+badge: Draft
+---
 
-This document captures the current Open-Source Intelligence (OSINT) surface inside the Shaivra Intelligence Suite, highlights implementation gaps, and outlines the next integrations to harden the agent network.
+## Outcome
+Learn what OSINT integrations exist, where the current implementation falls short, and which open-source projects should be prioritized to harden the agent network.
 
 ## What Exists Today
 

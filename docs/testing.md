@@ -1,6 +1,16 @@
-# Testing Guide
+---
+title: Testing Guide
+description: How to run, extend, and prioritize the Vitest suite that guards the Shaivra Intelligence Suite.
+sidebarTitle: Testing
+badge: Stable
+---
 
-This project now ships with an initial Vitest-based suite focused on deterministic utilities and UI smoke checks. The goal is to provide a foundation for expanding coverage across the backend agent network services and the complex portal UI workflows.
+## Outcome
+You will learn which tools power the test stack, how to run and interpret the suite, and where to invest next to reach full coverage.
+
+:::info
+Mintlify recommends leading with the “why.” Readers should know in one paragraph what they gain before drilling into steps.
+:::
 
 ## Tooling
 - **Runner**: [Vitest](https://vitest.dev) with the Vite React plugin so component tests reuse the app's JSX/TSX pipeline.
@@ -8,17 +18,19 @@ This project now ships with an initial Vitest-based suite focused on determinist
 - **Assertions**: `@testing-library/jest-dom` is loaded via `vitest.setup.ts`.
 - **Crypto Polyfills**: Node's `webcrypto`, `TextEncoder`, and `TextDecoder` are attached to `globalThis` in `vitest.setup.ts` so browser-only helpers (e.g., `crypto.subtle.digest`) work in Node.
 
-Run the suite with:
+## Run Commands
+- **Full suite**:
+  ```bash
+  bun run test
+  ```
+- **Coverage**:
+  ```bash
+  bun x vitest run --coverage
+  ```
 
-```bash
-bun run test
-```
-
-`vitest.config.ts` also enables V8 coverage reporters. Generate coverage locally using:
-
-```bash
-bun x vitest run --coverage
-```
+:::warning
+Supertest specs spin up a local HTTP listener. When sandboxed (CI runners, Codespaces), you may need elevated permissions to run `bun run test`.
+:::
 
 ## Implemented Tests
 | Area | File | Notes |

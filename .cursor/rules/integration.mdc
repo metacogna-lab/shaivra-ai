@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+description: integrating into existing code
+---
+- Analyse the existing implementation first
+    - It has a general ingestion for a client project but also a knowledge base ingestion point
+- Do not overwrite existing code implementation
+- Use minimal tokens
+- Leverage scripts stored in @scripts/ to perform repetitive work
+- Incorporate integration points into the ingestion pipelines
+- Separate concerns from ingestion and data generation from agent networks
+- Carefully develop the claude skills
+- Use best practices in the PDF file to understand how to prepare skills. Perform a summary for agents in skills/SKILLS_BEST_PRACTICES.md

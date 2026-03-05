@@ -18,7 +18,7 @@ This file serves as shared memory to prevent implementation drift and conflictin
 5. Integration tests
 
 ### Current State Analysis
-- ✅ Canonical schema exists (`src/types/intelligence.ts`)
+- ✅ Canonical schema exists (`src/contracts/intelligence.ts`)
 - ✅ 5 OSINT integrations with caching/retry logic
 - ✅ Basic unit tests for canonical schema
 - ✅ **COMPLETE:** `osintAggregator.ts` now returns IntelligenceEvent in `OSINTResult.event`
@@ -39,6 +39,13 @@ This file serves as shared memory to prevent implementation drift and conflictin
 - Registry: `src/server/normalizers/index.ts`
 - Tests: `tests/integration/normalization.test.ts`
 
+## 2026-03-05 - Initphase test coverage
+
+**Branch:** `feature/initphase-test-coverage`  
+**Run log:** [tasks/20260305-153400-errors.md](20260305-153400-errors.md)
+
+**Added:** Unit tests for portal and knowledge-graph contracts, playbook service, OSINT aggregator (in `tests/server/`); contract-validated portalApi tests; server API tests for summarize, report, osint/aggregate, ingestion/advanced, projects, admin/reports/daily|weekly, graph/master; integration tests for portal API contracts (MSW + schema validation). Fixtures: `tests/fixtures/portalDummyData.ts`, `tests/fixtures/intelligenceDummyData.ts`. Full suite: 144 passed, 1 skipped. Redis ECONNREFUSED in stderr (non-fatal); four endpoints accept 200 or 500 when Redis/masterGraph not available.
+
 ## Unresolved Issues
 
 None yet.
@@ -55,7 +62,7 @@ None yet.
 
 **Decision:** Keep a single pipeline (ingest → normalize → enrich) and four clear boundaries: (1) project/user investigation ingestion, (2) knowledge-base (Memgraph) ingestion, (3) agent network (consumes normalized data; does not ingest), (4) skills (execution layer; caller decides persistence). New backend work should respect and enhance the full implemented pipeline steps (Lens and PipelineMonitor); mocks can be replaced incrementally.
 
-**Reference:** [docs/ingestion-and-concerns.md](../docs/ingestion-and-concerns.md) — four concerns, full pipeline steps, schemas/contracts for public API data (IntelligenceEvent, normalizers, OSINTResult, portalTypes, Zod), core pipeline and where advanced ingestion / normalizers / graphRepository fit, integration points for frontend, Memgraph, agent network, and skills.
+**Reference:** [docs/ingestion-and-concerns.md](../docs/ingestion-and-concerns.md) — four concerns, full pipeline steps, schemas/contracts for public API data (IntelligenceEvent, normalizers, OSINTResult, `src/contracts/portal.ts`, Zod), core pipeline and where advanced ingestion / normalizers / graphRepository fit, integration points for frontend, Memgraph, agent network, and skills.
 
 ## Completed Milestones
 

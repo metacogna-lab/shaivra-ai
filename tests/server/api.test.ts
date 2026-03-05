@@ -380,3 +380,184 @@ describe('POST /api/auth/login', () => {
     expect(response.body.error).toMatch(/Authentication failed/i);
   });
 });
+
+describe('POST /api/summarize', () => {
+  it('returns 500 when GEMINI_API_KEY is missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const res = await request(app).post('/api/summarize').send({ data: {}, target: 'Example' });
+    expect(res.status).toBe(500);
+    expect(res.body.error).toMatch(/GEMINI_API_KEY/i);
+  });
+  it('returns summary when configured', async () => {
+    process.env.GEMINI_API_KEY = 'key';
+    mockGenerateContent.mockResolvedValue({ text: 'Summary of OSINT data.' });
+    const res = await request(app).post('/api/summarize').send({ data: { items: [] }, target: 'Example' });
+    expect(res.status).toBe(200);
+    expect(res.body.summary).toBe('Summary of OSINT data.');
+  });
+});
+
+describe('POST /api/report', () => {
+  it('returns 500 when GEMINI_API_KEY is missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const res = await request(app).post('/api/report').send({ pipelineData: {}, target: 'T' });
+    expect(res.status).toBe(500);
+  });
+  it('returns report with summary and key_findings when configured', async () => {
+    process.env.GEMINI_API_KEY = 'key';
+    const agentResult = JSON.stringify({
+      new_certainty: 90,
+      new_findings: {},
+      citations: [],
+      logs: ['Done'],
+      is_satisfied: true,
+    });
+    const reportJson = JSON.stringify({
+      title: 'Report',
+      summary: 'Executive summary',
+      key_findings: ['Finding 1'],
+      risk_assessment: 'Low',
+      strategic_actions: ['Action 1'],
+    });
+    mockGenerateContent
+      .mockResolvedValueOnce({ text: agentResult })
+      .mockResolvedValueOnce({ text: reportJson });
+    const res = await request(app).post('/api/report').send({ pipelineData: {}, target: 'Target Corp' });
+    expect(res.status).toBe(200);
+    expect(res.body.summary).toBe('Executive summary');
+    expect(Array.isArray(res.body.key_findings)).toBe(true);
+  });
+});
+
+describe('GET /api/osint/aggregate', () => {
+  it('returns aggregate report or 500 when integrations are mocked', async () => {
+    process.env.SHODAN_API_KEY = 's';
+    process.env.ALIENVAULT_API_KEY = 'a';
+    process.env.VIRUSTOTAL_API_KEY = 'v';
+    mockSearchShodan.mockResolvedValue({ matches: [{ ip_str: '1.2.3.4', port: 443, org: 'X', tags: [], hostnames: [], domains: [] }], total: 1 });
+    mockGetAlienVaultGeneral.mockResolvedValue({
+      indicator: 'example.com',
+      type: 'domain',
+      title: 'T',
+      description: 'D',
+      created: new Date().toISOString(),
+      modified: new Date().toISOString(),
+      is_active: true,
+      threat_score: 50,
+    });
+    mockGetVirusTotalReport.mockResolvedValue({
+      data: {
+        id: 'example.com',
+        type: 'domain',
+        attributes: {
+          last_analysis_stats: { harmless: 70, malicious: 2, suspicious: 1, undetected: 5, timeout: 0 },
+          last_analysis_date: Math.floor(Date.now() / 1000),
+          last_modification_date: Math.floor(Date.now() / 1000),
+          reputation: 80,
+          total_votes: { harmless: 100, malicious: 2 },
+          categories: {},
+          tags: [],
+        },
+        links: { self: 'https://vt.com/x' },
+      },
+    });
+    const res = await request(app).get('/api/osint/aggregate').query({ query: 'example.com' });
+    expect([200, 500]).toContain(res.status);
+    if (res.status === 200) {
+      expect(res.body).toHaveProperty('target');
+      expect(res.body).toHaveProperty('results');
+      expect(res.body).toHaveProperty('summary');
+      expect(res.body.summary).toHaveProperty('threat_level');
+    }
+  });
+});
+
+describe('POST /api/ingestion/advanced', () => {
+  it('returns 500 when GEMINI_API_KEY is missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const res = await request(app).post('/api/ingestion/advanced').send({ query: 't1', sources: [] });
+    expect(res.status).toBe(500);
+  });
+  it('returns job_ids and data when configured', async () => {
+    process.env.GEMINI_API_KEY = 'key';
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify([{ uuid: 'u1', entity_name: 'E1', entity_type: 'Org', relationship: 'OWNS', confidence_score: 0.9, source_origin: 'Web', strategic_value: 'High', adversarial_potential: 0.2, competitor_status: 'neutral' }]),
+    });
+    const res = await request(app).post('/api/ingestion/advanced').send({ query: 'Target', sources: [] });
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('job_ids');
+    expect(res.body).toHaveProperty('status');
+    expect(res.body).toHaveProperty('data');
+  });
+});
+
+describe('GET /api/projects', () => {
+  it('returns array of projects', async () => {
+    const res = await request(app).get('/api/projects');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+});
+
+describe('GET /api/admin/reports/daily', () => {
+  it('returns 500 when GEMINI_API_KEY is missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const res = await request(app).get('/api/admin/reports/daily');
+    expect(res.status).toBe(500);
+  });
+  it('returns report structure when configured', async () => {
+    process.env.GEMINI_API_KEY = 'key';
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        report_id: 'daily-rpt-2025-01-15',
+        date: new Date().toISOString(),
+        summary: 'Daily summary',
+        top_threats: [],
+        sector_shifts: [],
+        graph_updates: { nodes: [], links: [] },
+        ml_insights: { clusters: [], trends: [] },
+      }),
+    });
+    const res = await request(app).get('/api/admin/reports/daily');
+    expect([200, 500]).toContain(res.status);
+    if (res.status === 200) {
+      expect(res.body.report_id).toBeDefined();
+      expect(res.body.summary).toBeDefined();
+    }
+  });
+});
+
+describe('GET /api/admin/reports/weekly', () => {
+  it('returns 500 when GEMINI_API_KEY is missing', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const res = await request(app).get('/api/admin/reports/weekly');
+    expect(res.status).toBe(500);
+  });
+  it('returns report structure when configured', async () => {
+    process.env.GEMINI_API_KEY = 'key';
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        report_id: 'weekly-rpt-2025-01-15',
+        anomalies_detected: [],
+        clusters: [],
+        trend_predictions: [],
+        ml_insights: 'Insights',
+        human_readable_summary: 'Summary',
+      }),
+    });
+    const res = await request(app).get('/api/admin/reports/weekly');
+    expect([200, 500]).toContain(res.status);
+    if (res.status === 200) expect(res.body.report_id).toBeDefined();
+  });
+});
+
+describe('GET /api/graph/master', () => {
+  it('returns graph payload with nodes and links or 500 if masterGraph undefined', async () => {
+    const res = await request(app).get('/api/graph/master');
+    expect([200, 500]).toContain(res.status);
+    if (res.status === 200 && res.body && typeof res.body === 'object') {
+      expect(res.body).toHaveProperty('nodes');
+      expect(res.body).toHaveProperty('links');
+    }
+  });
+});

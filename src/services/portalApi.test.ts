@@ -1,4 +1,7 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { portalApi } from './portalApi';
+import { dashboardDataSchema } from '../contracts/portal';
+import { ingestionJobSchema } from '../contracts/portal';
 
 describe('portalApi.hashData', () => {
   it('produces deterministic 64-character sha256 hashes', async () => {
@@ -71,5 +74,80 @@ describe('portalApi.getDashboardStats', () => {
       status: expect.any(String)
     });
     expect(typeof stats.data.system_health).toBe('string');
+  });
+
+  it('response data validates against dashboardDataSchema', async () => {
+    const stats = await portalApi.getDashboardStats();
+    const parsed = dashboardDataSchema.safeParse(stats.data);
+    expect(parsed.success).toBe(true);
+  });
+});
+
+describe('portalApi.getLensJobs', () => {
+  it('returns array of ingestion jobs and each validates against ingestionJobSchema', async () => {
+    const res = await portalApi.getLensJobs();
+    expect(Array.isArray(res.data)).toBe(true);
+    expect(res.data.length).toBeGreaterThan(0);
+    for (const job of res.data) {
+      const parsed = ingestionJobSchema.safeParse(job);
+      expect(parsed.success).toBe(true);
+    }
+  });
+});
+
+describe('portalApi.getMasterGraph', () => {
+  const fetchMock = vi.fn();
+
+  beforeAll(() => {
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ nodes: [{ id: 'n1', label: 'Node 1' }], links: [{ source: 'n1', target: 'n2' }] }),
+    });
+  });
+
+  it('returns graph with nodes and links', async () => {
+    const graph = await portalApi.getMasterGraph();
+    expect(graph).toHaveProperty('nodes');
+    expect(graph).toHaveProperty('links');
+    expect(Array.isArray(graph.nodes)).toBe(true);
+    expect(Array.isArray(graph.links)).toBe(true);
+  });
+});
+
+describe('portalApi.startAgentInvestigation and pollAgentRun', () => {
+  const fetchMock = vi.fn();
+
+  beforeAll(() => {
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+  beforeEach(() => {
+    fetchMock.mockReset();
+  });
+
+  it('startAgentInvestigation returns runId and poll returns status', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ runId: 'run-123' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: 'completed', certainty: 85 }),
+      });
+    const start = await portalApi.startAgentInvestigation('Target', 'Sector', 'Focus');
+    expect(start.runId).toBe('run-123');
+    const poll = await portalApi.pollAgentInvestigation('run-123');
+    expect(poll.status).toBe('completed');
+    expect(poll.certainty).toBe(85);
   });
 });

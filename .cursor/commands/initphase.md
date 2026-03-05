@@ -1,1 +1,3 @@
 Always start with a new feature branch, write tests, work, test, commit, merge. Record state in @tasks/bridge.md. Follow rules and create new commands where necessary for repetitive work.
+
+**Intelligence investigation (initphase):** When conducting an investigation, follow the 7-step flow in `docs/investigation-initphase.md`: retrieve entity cluster from graph → identify gaps → select OSINT tools → trigger enrichment → wait for graph updates → re-evaluate cluster → build assessment. Reason only over **resolved graph entities**; do not use raw signals.

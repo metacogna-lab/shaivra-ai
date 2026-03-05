@@ -17,6 +17,19 @@ This file serves as shared memory to prevent implementation drift and conflictin
 
 **Guarantees:** No orphan relationships; every relationship has supporting evidence; every signal traceable to a source. Use before `intelligenceEventToGraphOps` in strict pipelines.
 
+## 2026-03-05 - Initphase: Intelligence Investigation Flow
+
+**Branch:** `feature/initphase-investigation-flow`
+
+**Summary:** Initphase conducts an intelligence investigation using **resolved graph entities only** (no raw signals). Seven steps: (1) retrieve target entity cluster from graph, (2) identify intelligence gaps, (3) select OSINT tools for gaps, (4) trigger enrichment workflows, (5) wait for graph updates, (6) re-evaluate entity cluster, (7) build intelligence assessment.
+
+**Added:**
+- **Doc:** `docs/investigation-initphase.md` — maps each step to implementation (`graphLookup`, `gapDetection`, `toolDispatch`, `enrichmentGraph`, `investigationGraph`); states constraint "no raw signals"; entrypoints API, script, tests.
+- **Tests:** `tests/investigationFlow.test.ts` — synthesis payload uses only canonical data (entities, observations, relationships; no raw_response/api_response). `tests/langgraphjs/enrichment.test.ts` — gap detection uses only entity and graphSnapshot (no rawSignals/rawToolOutput).
+- **Command:** `.cursor/commands/initphase.md` — references 7-step flow in `docs/investigation-initphase.md`; reason only over resolved graph entities.
+
+**Flow:** `POST /api/investigation/run` or `bun scripts/run-investigation-example.ts [domain]` → `runInvestigation` → `investigationGraph` (graphLookup → missingDomains → triggerEnrichment | synthesizeReport) → report + graphSnapshot + events.
+
 ## 2026-03-05 - Systems-Engineering Integration Blueprint (Phase 1)
 
 **Branch:** `feature/prometheus-grafana-osint-sdk` (or new branch from plan).

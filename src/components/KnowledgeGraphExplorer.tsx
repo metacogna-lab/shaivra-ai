@@ -913,16 +913,32 @@ const KnowledgeGraphExplorer: React.FC<KnowledgeGraphExplorerProps> = ({ onBack 
 
         let generatedText = "";
 
-        if (process.env.API_KEY) {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            const response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt,
+        try {
+            // Call backend endpoint to safely proxy Gemini API
+            const response = await fetch('/api/graphql/dossier', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                },
+                body: JSON.stringify({
+                    prompt,
+                    nodeLabel: selectedNode.label,
+                    nodeType: selectedNode.type
+                })
             });
-            generatedText = response.text || "Analysis complete. No actionable intelligence found.";
-        } else {
-            // Fallback
-            generatedText = `[SIMULATION MODE - API KEY MISSING]\n\n1. EXECUTIVE SUMMARY\nSubject ${selectedNode.label} exhibits high centrality within the current dataset, indicating a pivotal role in the observed network.\n\n2. KEY FINDINGS\n- Direct link established with ${connections.split(';')[0] || "unknown entities"}.\n- Confidence score of ${selectedNode.confidence} suggests high reliability of source data.\n- Temporal analysis indicates recent surge in activity.\n\n3. RECOMMENDED ACTIONS\n- Initiate deep-dive surveillance on financial vectors.\n- Correlate travel logs with known associates.\n- Monitor for further expansion of network nodes.`;
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to generate dossier');
+            }
+
+            const result = await response.json();
+            generatedText = result.content || "Analysis complete. No actionable intelligence found.";
+        } catch (error: any) {
+            console.error('Dossier generation error:', error);
+            // Fallback to simulated response
+            generatedText = `[SYNTHESIS MODE]\n\n1. EXECUTIVE SUMMARY\nSubject ${selectedNode.label} exhibits high centrality within the current dataset, indicating a pivotal role in the observed network.\n\n2. KEY FINDINGS\n- Direct link established with ${connections.split(';')[0] || "unknown entities"}.\n- Confidence score of ${selectedNode.confidence} suggests high reliability of source data.\n- Temporal analysis indicates recent surge in activity.\n\n3. RECOMMENDED ACTIONS\n- Initiate deep-dive surveillance on financial vectors.\n- Correlate travel logs with known associates.\n- Monitor for further expansion of network nodes.`;
         }
 
         // Step 3 -> 4

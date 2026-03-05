@@ -90,6 +90,7 @@ import cliRoutes from './src/server/routes/cli';
 import documentRoutes from './src/server/routes/documents';
 import intelligenceRoutes from './src/server/routes/intelligence';
 import monitoringRoutes from './src/server/routes/monitoring';
+import graphqlRoutes from './src/server/routes/graphql';
 
 dotenv.config();
 
@@ -1714,6 +1715,7 @@ app.use('/api/cli', cliRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+app.use('/api/graphql', graphqlRoutes);
 
   if (process.env.NODE_ENV !== "test") {
     app.listen(PORT, "0.0.0.0", () => {

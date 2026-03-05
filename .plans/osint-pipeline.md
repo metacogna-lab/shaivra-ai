@@ -24,3 +24,8 @@
 2. Introduce a persistence layer (PostgreSQL + Redis) for master graph storage and caching.
 3. Replace the mocked Lens pipeline by wiring each step to queued worker jobs that emit events back to the UI.
 4. Expand automated tests to cover new tool adapters and queue lifecycles.
+
+## Tooling Backlog
+- **SpiderFoot Agent**: Package SpiderFoot CLI scans as reusable worker tasks that emit structured JSON to the master graph.
+- **IntelOwl Connector**: Wrap IntelOwl analyzers behind `/api/osint/*` so secrets, caching, and rate limits are centralized.
+- **OpenCTI Sink**: Push investigation output into OpenCTI/STIX bundles to replace the in-memory `masterGraph`.

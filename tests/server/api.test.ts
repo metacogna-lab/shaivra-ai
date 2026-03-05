@@ -166,6 +166,24 @@ describe('GET /api/osint/fingerprint', () => {
   });
 });
 
+describe('GET /api/osint/alienvault', () => {
+  it('returns 400 when API key missing', async () => {
+    delete process.env.ALIENVAULT_API_KEY;
+    const response = await request(app).get('/api/osint/alienvault').query({ query: 'shaivra.ai' });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/ALIENVAULT_API_KEY/i);
+  });
+});
+
+describe('GET /api/osint/virustotal', () => {
+  it('returns 400 when API key missing', async () => {
+    delete process.env.VIRUSTOTAL_API_KEY;
+    const response = await request(app).get('/api/osint/virustotal').query({ query: 'shaivra.ai' });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/VIRUSTOTAL_API_KEY/i);
+  });
+});
+
 describe('POST /api/forge/analyze', () => {
   it('fails when API key missing', async () => {
     delete process.env.GEMINI_API_KEY;

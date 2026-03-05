@@ -11,6 +11,11 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html']
-    }
-  }
+    },
+    server: {
+      deps: {
+        inline: ['@shaivra/osint-sdk'],
+      },
+    },
+  },
 });

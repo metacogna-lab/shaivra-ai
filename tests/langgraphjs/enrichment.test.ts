@@ -3,6 +3,14 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../../src/server/services/toolSelector', () => ({
+  toolSelector: {
+    getAllTools: vi.fn(() => ['shodan', 'virustotal', 'alienvault', 'spiderfoot', 'reconng', 'theharvester', 'securitytrails', 'epieos', 'twitter', 'reddit']),
+    selectTools: vi.fn((opts: { maxTools: number }) => ['shodan', 'virustotal', 'alienvault'].slice(0, opts.maxTools)),
+  },
+}));
+
 import { detectIntelligenceGaps, hasSufficientCoverage } from '../../langgraphjs/nodes/gapDetection';
 import { selectToolsForGaps } from '../../langgraphjs/nodes/toolDispatch';
 import type { EnrichmentState } from '../../langgraphjs/state';
@@ -30,11 +38,24 @@ describe('Enrichment agent', () => {
 
     it('returns fewer gaps when entity has observations, organization, and relationships', () => {
       const state = baseState({
-        entity: { type: 'infrastructure', value: 'example.com', refs: [{ id: 'er1', type: 'organization', name: 'Acme', aliases: [], confidence: 0.8, attributes: {}, sourceIds: [], firstSeen: new Date(), lastSeen: new Date(), metadata: { verified: false, tags: [] } } as any] },
+        entity: {
+          type: 'infrastructure',
+          value: 'example.com',
+          refs: [
+            { id: 'e2', type: 'infrastructure', name: 'example.com', aliases: [], confidence: 0.9, attributes: {}, sourceIds: [], firstSeen: new Date(), lastSeen: new Date(), metadata: { verified: false, tags: [] } } as any,
+            { id: 'e1', type: 'organization', name: 'Acme', aliases: [], confidence: 0.8, attributes: {}, sourceIds: [], firstSeen: new Date(), lastSeen: new Date(), metadata: { verified: false, tags: [] } } as any,
+          ],
+        },
         graphSnapshot: {
-          entities: [{ id: 'e1', type: 'organization', name: 'Acme', aliases: [], confidence: 0.8, attributes: {}, sourceIds: [], firstSeen: new Date(), lastSeen: new Date(), metadata: { verified: false, tags: [] } } as any],
-          observations: [{ id: 'o1', entityId: 'e1', type: 'attribute', property: 'ip', value: '1.2.3.4', confidence: 0.9, source: { tool: 'shodan', timestamp: new Date(), raw: {} }, context: {} } as any],
-          relationships: [{ id: 'r1', fromEntityId: 'e1', toEntityId: 'e2', type: 'hosts', strength: 0.8, confidence: 0.9, evidence: [], bidirectional: false, metadata: { firstSeen: new Date(), lastSeen: new Date(), count: 1 } } as any],
+          entities: [
+            { id: 'e1', type: 'organization', name: 'Acme', aliases: [], confidence: 0.8, attributes: {}, sourceIds: [], firstSeen: new Date(), lastSeen: new Date(), metadata: { verified: false, tags: [] } } as any,
+            { id: 'e2', type: 'infrastructure', name: 'example.com', aliases: [], confidence: 0.9, attributes: {}, sourceIds: [], firstSeen: new Date(), lastSeen: new Date(), metadata: { verified: false, tags: [] } } as any,
+          ],
+          observations: [{ id: 'o1', entityId: 'e2', type: 'attribute', property: 'ip', value: '1.2.3.4', confidence: 0.9, source: { tool: 'shodan', timestamp: new Date(), raw: {} }, context: {} } as any],
+          relationships: [
+            { id: 'r1', fromEntityId: 'e1', toEntityId: 'e2', type: 'hosts', strength: 0.8, confidence: 0.9, evidence: [], bidirectional: false, metadata: { firstSeen: new Date(), lastSeen: new Date(), count: 1 } } as any,
+            { id: 'r2', fromEntityId: 'e2', toEntityId: 'e1', type: 'registered_to', strength: 0.9, confidence: 0.9, evidence: [], bidirectional: false, metadata: { firstSeen: new Date(), lastSeen: new Date(), count: 1 } } as any,
+          ],
         },
       });
       const gaps = detectIntelligenceGaps(state);
@@ -66,6 +87,7 @@ describe('Enrichment agent', () => {
       const state = baseState({ toolRuns: [] });
       const tools = selectToolsForGaps(state);
       expect(Array.isArray(tools)).toBe(true);
+      expect(tools.length).toBeLessThanOrEqual(state.budget.maxToolRuns);
       expect(tools.every(t => ['shodan', 'virustotal', 'alienvault'].includes(t))).toBe(true);
     });
 

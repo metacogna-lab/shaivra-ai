@@ -145,6 +145,9 @@ model Investigation {
   updatedAt   DateTime            @updatedAt
   completedAt DateTime?
 
+  // Relationships
+  intelligenceEvents IntelligenceEvent[]
+
   @@index([status])
   @@index([createdAt])
   @@map("investigations")
@@ -214,4 +217,54 @@ model Trend {
   @@index([severity])
   @@index([detectedAt])
   @@map("trends")
+}
+
+// Intelligence Event - Canonical OSINT data from tool executions
+// Stores normalized entities, observations, and relationships
+model IntelligenceEvent {
+  id              String   @id @default(uuid())
+  traceId         String   @map("trace_id")
+  investigationId String?  @map("investigation_id")
+  tool            String   // OSINT tool that generated this event
+  target          String   // Investigation target
+  timestamp       DateTime @default(now())
+  status          String   // 'success' | 'partial' | 'failed'
+  entities        Json     @default("[]") // EntityReference[]
+  observations    Json     @default("[]") // Observation[]
+  relationships   Json     @default("[]") // Relationship[]
+  metadata        Json     // { executionTime, cost, errors, raw }
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  investigation Investigation? @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+
+  @@index([investigationId])
+  @@index([traceId])
+  @@index([timestamp])
+  @@index([tool])
+  @@index([status])
+  @@map("intelligence_events")
+}
+
+// Task Queue - Background task processing for OSINT tools
+model TaskQueue {
+  id          String    @id @default(uuid())
+  taskType    String    @map("task_type") // Type of task (e.g., 'osint_scan', 'enrich_entity')
+  payload     Json      // Task parameters
+  priority    Int       @default(5) // 1-10, higher = more urgent
+  status      String    @default("pending") // 'pending' | 'running' | 'completed' | 'failed'
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3) @map("max_attempts")
+  result      Json?     // Task result (if completed)
+  error       String?   // Error message (if failed)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, priority])
+  @@index([taskType])
+  @@index([createdAt])
+  @@map("task_queue")
 }

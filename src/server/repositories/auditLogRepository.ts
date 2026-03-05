@@ -184,4 +184,50 @@ export const auditLogRepository = {
       .map(([action, count]) => ({ action, count }))
       .sort((a, b) => b.count - a.count);
   },
+
+  /**
+   * Find logs by investigation UUID (for LLM tracing and lineage)
+   */
+  async findByInvestigation(investigationUUID: string) {
+    return prisma.auditLog.findMany({
+      where: {
+        details: {
+          path: ['investigation_uuid'],
+          equals: investigationUUID,
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+  },
+
+  /**
+   * Find all LLM calls (Gemini invocations) with hashes for audit trail
+   */
+  async findLLMCalls(limit = 100) {
+    return prisma.auditLog.findMany({
+      where: {
+        action: {
+          in: ['gemini_call', 'gemini_call_failed'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+  },
 };

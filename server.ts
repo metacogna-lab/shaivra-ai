@@ -75,6 +75,10 @@ import { createBullBoard } from '@bull-board/api';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 
+// Document Processing
+import multer from 'multer';
+import { processDocument, parsePDF, parseDOCX, parseTXT, analyzeDocument } from './src/server/services/documentParser';
+
 dotenv.config();
 
 const app = express();
@@ -555,6 +559,64 @@ app.get("/api/cli/stats", authenticate, async (req, res) => {
     });
   } catch (error: any) {
     console.error('[CLI Stats Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Multer Configuration for File Uploads ---
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOCX, and TXT allowed.'));
+    }
+  }
+});
+
+// 4k. Document Upload & Analysis
+app.post("/api/documents/upload", authenticate, upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    console.log(`[Document Upload] Processing: ${req.file.originalname}`);
+
+    const result = await processDocument(req.file);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'document_upload',
+      resource: 'document',
+      details: {
+        filename: req.file.originalname,
+        size: req.file.size,
+        type: req.file.mimetype,
+        s3_key: result.s3_key,
+        risk_score: result.analysis.risk_score
+      },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({
+      message: 'Document processed successfully',
+      document: {
+        filename: result.parsed.filename,
+        type: result.parsed.type,
+        metadata: result.parsed.metadata,
+        s3_key: result.s3_key
+      },
+      analysis: result.analysis
+    });
+  } catch (error: any) {
+    console.error('[Document Upload Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });

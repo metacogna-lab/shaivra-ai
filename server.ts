@@ -47,6 +47,38 @@ import { investigationRepository } from "./src/server/repositories/investigation
 import { auditLogRepository } from "./src/server/repositories/auditLogRepository";
 import { graphRepository } from "./src/server/repositories/graphRepository";
 
+// OSINT Services
+import { aggregateOSINTData, quickOSINTLookup } from "./src/server/services/osintAggregator";
+import { searchShodan, getShodanHost } from "./src/server/integrations/shodan";
+import { getAlienVaultGeneral } from "./src/server/integrations/alienvault";
+import { getVirusTotalReport } from "./src/server/integrations/virustotal";
+
+// Social Media Services
+import { aggregateSocialMedia, monitorUser } from "./src/server/services/socialMediaAggregator";
+import { searchTweets, getUserTweets, getTwitterUser } from "./src/server/integrations/twitter";
+import { searchReddit, searchSubreddit, getRedditUser } from "./src/server/integrations/reddit";
+
+// CLI Tool Services
+import {
+  queueSherlockSearch,
+  queueTheHarvesterSearch,
+  getJobStatus,
+  getQueueStats,
+  sherlockQueue,
+  theharvesterQueue
+} from "./src/server/services/cliOrchestrator";
+import { checkSherlockHealth } from "./src/server/integrations/sherlock";
+import { checkTheHarvesterHealth, getAvailableSources } from "./src/server/integrations/theharvester";
+
+// Bull Board (job queue dashboard)
+import { createBullBoard } from '@bull-board/api';
+import { BullAdapter } from '@bull-board/api/bullAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+
+// Document Processing
+import multer from 'multer';
+import { processDocument, parsePDF, parseDOCX, parseTXT, analyzeDocument } from './src/server/services/documentParser';
+
 dotenv.config();
 
 const app = express();
@@ -59,6 +91,21 @@ app.use(express.json({ limit: '10mb' })); // Limit payload size
 
 // Apply global rate limiter to all routes
 app.use('/api/', globalLimiter);
+
+// --- Bull Board Dashboard (Job Queue Monitoring) ---
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+createBullBoard({
+  queues: [
+    new BullAdapter(sherlockQueue),
+    new BullAdapter(theharvesterQueue)
+  ],
+  serverAdapter
+});
+
+// Protected Bull Board route (admin only)
+app.use('/admin/queues', adminOnly, serverAdapter.getRouter());
 
 // --- Strategy Integration ---
 const loadStrategy = () => {
@@ -199,61 +246,377 @@ app.post("/api/search",
   }
 });
 
-// 2. OSINT: Shodan (Requires SHODAN_API_KEY)
-app.get("/api/osint/shodan", async (req, res) => {
-  const { query } = req.query;
-  const apiKey = process.env.SHODAN_API_KEY;
-
-  if (!apiKey) {
-    return res.status(400).json({ error: "SHODAN_API_KEY is not configured." });
-  }
+// 2. OSINT: Shodan (with retry logic and caching)
+app.get("/api/osint/shodan", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, type = 'search' } = req.query;
 
   try {
-    const response = await fetch(`https://api.shodan.io/shodan/host/search?key=${apiKey}&query=${query}`);
-    const data = await response.json();
+    let data;
+    if (type === 'host') {
+      data = await getShodanHost(query as string);
+    } else {
+      data = await searchShodan(query as string);
+    }
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_query',
+      resource: 'shodan',
+      details: { query, type },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
     res.json(data);
   } catch (error: any) {
+    console.error('[Shodan Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 3. OSINT: AlienVault OTX (Requires ALIENVAULT_API_KEY)
-app.get("/api/osint/alienvault", async (req, res) => {
+// 3. OSINT: AlienVault OTX (with retry logic and caching)
+app.get("/api/osint/alienvault", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'domain' } = req.query;
-  const apiKey = process.env.ALIENVAULT_API_KEY;
-
-  if (!apiKey) {
-    return res.status(400).json({ error: "ALIENVAULT_API_KEY is not configured." });
-  }
 
   try {
-    // Example: https://otx.alienvault.com/api/v1/indicators/domain/google.com/general
-    const response = await fetch(`https://otx.alienvault.com/api/v1/indicators/${type}/${query}/general`, {
-      headers: { 'X-OTX-API-KEY': apiKey }
+    const data = await getAlienVaultGeneral(query as string, type as any);
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_query',
+      resource: 'alienvault',
+      details: { query, type },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
     });
-    const data = await response.json();
+
     res.json(data);
   } catch (error: any) {
+    console.error('[AlienVault Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 4. OSINT: VirusTotal (Requires VIRUSTOTAL_API_KEY)
-app.get("/api/osint/virustotal", async (req, res) => {
+// 4. OSINT: VirusTotal (with retry logic and caching)
+app.get("/api/osint/virustotal", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'domain' } = req.query;
-  const apiKey = process.env.VIRUSTOTAL_API_KEY;
 
-  if (!apiKey) {
-    return res.status(400).json({ error: "VIRUSTOTAL_API_KEY is not configured." });
+  try {
+    const data = await getVirusTotalReport(query as string, type as any);
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_query',
+      resource: 'virustotal',
+      details: { query, type },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[VirusTotal Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4b. OSINT: Aggregated Report (queries all sources in parallel)
+app.get("/api/osint/aggregate", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, type = 'domain' } = req.query;
+
+  try {
+    const report = await aggregateOSINTData(query as string, type as any);
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_aggregate',
+      resource: 'all',
+      details: {
+        query,
+        type,
+        sources: report.results.map(r => r.source),
+        threat_level: report.summary.threat_level
+      },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(report);
+  } catch (error: any) {
+    console.error('[OSINT Aggregate Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4c. Social Media: Twitter Search
+app.get("/api/social/twitter/search", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, max_results = 10 } = req.query;
+
+  try {
+    const data = await searchTweets(query as string, parseInt(max_results as string));
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_query',
+      resource: 'twitter',
+      details: { query, max_results },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Twitter Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4d. Social Media: Reddit Search
+app.get("/api/social/reddit/search", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, limit = 25, sort = 'relevance' } = req.query;
+
+  try {
+    const data = await searchReddit(query as string, parseInt(limit as string), sort as any);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_query',
+      resource: 'reddit',
+      details: { query, limit, sort },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Reddit Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4e. Social Media: Aggregated Search (Twitter + Reddit)
+app.get("/api/social/aggregate", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, platforms = 'twitter,reddit', limit = 25 } = req.query;
+
+  try {
+    const platformList = (platforms as string).split(',').filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
+
+    const data = await aggregateSocialMedia(
+      query as string,
+      platformList,
+      parseInt(limit as string)
+    );
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_aggregate',
+      resource: 'all',
+      details: { query, platforms: platformList, limit },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Social Media Aggregate Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4f. Social Media: User Monitoring
+app.get("/api/social/monitor/:username", authenticate, searchLimiter, async (req, res) => {
+  const { username } = req.params;
+  const { platforms = 'twitter,reddit' } = req.query;
+
+  try {
+    const platformList = (platforms as string).split(',').filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
+
+    const data = await monitorUser(username, platformList);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'social_media_monitor',
+      resource: 'user',
+      details: { username, platforms: platformList },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(data);
+  } catch (error: any) {
+    console.error('[Social Media Monitor Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4g. CLI Tools: Sherlock Username Search (queued job)
+app.post("/api/cli/sherlock", authenticate, searchLimiter, async (req, res) => {
+  const { username } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ error: 'username required' });
   }
 
   try {
-    const response = await fetch(`https://www.virustotal.com/api/v3/${type}s/${query}`, {
-      headers: { 'x-apikey': apiKey }
+    const job = await queueSherlockSearch(username);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'cli_tool_sherlock',
+      resource: 'username',
+      details: { username, job_id: job.id },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
     });
-    const data = await response.json();
-    res.json(data);
+
+    res.json({
+      message: 'Sherlock job queued',
+      job_id: job.id,
+      status_url: `/api/cli/job/${job.id}`,
+      queue: 'sherlock'
+    });
   } catch (error: any) {
+    console.error('[Sherlock Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4h. CLI Tools: TheHarvester Domain Harvest (queued job)
+app.post("/api/cli/theharvester", authenticate, searchLimiter, async (req, res) => {
+  const { domain, source = 'google', limit = 500 } = req.body;
+
+  if (!domain) {
+    return res.status(400).json({ error: 'domain required' });
+  }
+
+  try {
+    const job = await queueTheHarvesterSearch(domain, source, limit);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'cli_tool_theharvester',
+      resource: 'domain',
+      details: { domain, source, limit, job_id: job.id },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({
+      message: 'TheHarvester job queued',
+      job_id: job.id,
+      status_url: `/api/cli/job/${job.id}`,
+      queue: 'theharvester',
+      available_sources: getAvailableSources()
+    });
+  } catch (error: any) {
+    console.error('[TheHarvester Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4i. CLI Tools: Get Job Status
+app.get("/api/cli/job/:jobId", authenticate, async (req, res) => {
+  const { jobId } = req.params;
+  const { queue = 'sherlock' } = req.query;
+
+  try {
+    const targetQueue = queue === 'theharvester' ? theharvesterQueue : sherlockQueue;
+    const status = await getJobStatus(targetQueue, jobId);
+
+    res.json(status);
+  } catch (error: any) {
+    console.error('[CLI Job Status Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4j. CLI Tools: Get Queue Statistics
+app.get("/api/cli/stats", authenticate, async (req, res) => {
+  try {
+    const [sherlockStats, theharvesterStats] = await Promise.all([
+      getQueueStats(sherlockQueue),
+      getQueueStats(theharvesterQueue)
+    ]);
+
+    const [sherlockHealth, theharvesterHealth] = await Promise.all([
+      checkSherlockHealth(),
+      checkTheHarvesterHealth()
+    ]);
+
+    res.json({
+      queues: {
+        sherlock: sherlockStats,
+        theharvester: theharvesterStats
+      },
+      health: {
+        sherlock: sherlockHealth,
+        theharvester: theharvesterHealth
+      }
+    });
+  } catch (error: any) {
+    console.error('[CLI Stats Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Multer Configuration for File Uploads ---
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOCX, and TXT allowed.'));
+    }
+  }
+});
+
+// 4k. Document Upload & Analysis
+app.post("/api/documents/upload", authenticate, upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    console.log(`[Document Upload] Processing: ${req.file.originalname}`);
+
+    const result = await processDocument(req.file);
+
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'document_upload',
+      resource: 'document',
+      details: {
+        filename: req.file.originalname,
+        size: req.file.size,
+        type: req.file.mimetype,
+        s3_key: result.s3_key,
+        risk_score: result.analysis.risk_score
+      },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({
+      message: 'Document processed successfully',
+      document: {
+        filename: result.parsed.filename,
+        type: result.parsed.type,
+        metadata: result.parsed.metadata,
+        s3_key: result.s3_key
+      },
+      analysis: result.analysis
+    });
+  } catch (error: any) {
+    console.error('[Document Upload Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1015,15 +1378,6 @@ app.post("/api/ingestion/advanced", async (req, res) => {
           userId: req.user.userId
         });
       }
-
-      const historyEntry = {
-        id: `h-${Date.now()}`,
-        query: target,
-        timestamp: new Date().toISOString(),
-        project_id: projectId,
-        results_count: results.length,
-        job_id: jobId
-      });
 
       allResults.push(...results.map((r: any) => ({ ...r, target_ref: target })));
     }

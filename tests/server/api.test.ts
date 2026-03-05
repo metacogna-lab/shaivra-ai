@@ -31,12 +31,78 @@ const mockAuthenticateUser = vi.fn();
 const mockRegisterUser = vi.fn();
 const mockSignOutUser = vi.fn();
 
+const mockProjectRepository = {
+  findByUser: vi.fn().mockResolvedValue([]),
+  create: vi.fn().mockImplementation(async (data) => ({
+    id: 'proj-mock',
+    created_at: new Date().toISOString(),
+    ...data
+  }))
+};
+
+const mockClipRepository = {
+  create: vi.fn().mockImplementation(async (data) => ({
+    id: 'clip-mock',
+    created_at: new Date().toISOString(),
+    ...data
+  })),
+  findByUser: vi.fn().mockResolvedValue([])
+};
+
+const mockSearchHistoryRepository = {
+  create: vi.fn().mockResolvedValue(undefined)
+};
+
+const mockReportRepository = {
+  create: vi.fn().mockResolvedValue(undefined)
+};
+
+const mockInvestigationRepository = {
+  create: vi.fn().mockResolvedValue(undefined)
+};
+
+const mockAuditLogRepository = {
+  create: vi.fn().mockResolvedValue(undefined)
+};
+
+const mockGraphRepository = {
+  updateMasterGraph: vi.fn().mockResolvedValue(undefined)
+};
+
 vi.mock('../../src/server/auth/supabaseAuth', () => ({
   authenticateUser: mockAuthenticateUser,
   registerUser: mockRegisterUser,
   signOutUser: mockSignOutUser,
   generateToken: () => 'signed-jwt',
   verifyToken: () => ({ userId: 'tester', role: 'admin', email: 'tester@shaivra.ai' })
+}));
+
+vi.mock('../../src/server/repositories/projectRepository', () => ({
+  projectRepository: mockProjectRepository
+}));
+
+vi.mock('../../src/server/repositories/clipRepository', () => ({
+  clipRepository: mockClipRepository
+}));
+
+vi.mock('../../src/server/repositories/searchHistoryRepository', () => ({
+  searchHistoryRepository: mockSearchHistoryRepository
+}));
+
+vi.mock('../../src/server/repositories/reportRepository', () => ({
+  reportRepository: mockReportRepository
+}));
+
+vi.mock('../../src/server/repositories/investigationRepository', () => ({
+  investigationRepository: mockInvestigationRepository
+}));
+
+vi.mock('../../src/server/repositories/auditLogRepository', () => ({
+  auditLogRepository: mockAuditLogRepository
+}));
+
+vi.mock('../../src/server/repositories/graphRepository', () => ({
+  graphRepository: mockGraphRepository
 }));
 
 let app: Express;

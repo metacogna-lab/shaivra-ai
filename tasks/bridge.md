@@ -45,6 +45,7 @@ None yet.
 
 ## Completed Milestones
 
+- ✅ **Mintlify skill + MCP:** Skill installed via `npx skills add https://mintlify.com/docs --yes --global` (to `~/.agents/skills/mintlify`, Cursor + others). Project MCP at `.cursor/mcp.json` with `https://mintlify.com/docs/mcp`. Restart Cursor to load MCP.
 - ✅ Task directory structure created
 - ✅ Feature branch created (`feature/2a-normalization-layer`)
 - ✅ **Phase 2A.1:** Base normalizer interface + AbstractNormalizer utilities
@@ -96,6 +97,7 @@ None yet.
 
 ## Next Steps
 
+**Docs:** Use Mintlify skill + MCP for doc structure, components, and best practices when editing or adding docs.
 **Phase 2B:** Add Layer 1 high-signal tools (OpenCorporates, SEC EDGAR, Gov Data)
 **Phase 2C:** Add Layer 2-3 tools (Censys, crt.sh, Recon-ng, SpiderFoot, Maltego)
 **Phase 2D:** Add Layer 4-5 tools + signal ranking system

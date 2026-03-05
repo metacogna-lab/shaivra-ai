@@ -43,6 +43,14 @@ This file serves as shared memory to prevent implementation drift and conflictin
 
 None yet.
 
+## Skills foundation (OSINT skillset)
+
+**Decision:** Implement full tree under `skills/` (lens-intelligence, forge-influence, shield-counterintel, orchestrator) plus `langgraph/` and `infra/` at repo root. Do not overwrite `skills/init_dir.sh` or `skills/shaivra-intelligence/`.
+
+**Current state:** Skill tree + langgraph + infra structure in place. Each skill has SKILL.md, references, scripts, and assets (stubs/minimal). Shared schema documented in lens/orchestrator references and langgraph/schemas. SKILLS_BEST_PRACTICES.md added. Tests for script entrypoints and langgraph pipeline (tests/skills/*.test.ts). Unified driver: `scripts/run_pipeline.sh` and `python3 langgraph/graph.py`; AI orchestration (Claude Code, Gemini CLI, OpenAI) documented in `skills/orchestrator/references/ai_orchestration.md`.
+
+**Links:** [skills/SKILLS_BEST_PRACTICES.md](../skills/SKILLS_BEST_PRACTICES.md), [skills/orchestrator/references/pipeline.md](../skills/orchestrator/references/pipeline.md), [skills/orchestrator/references/ai_orchestration.md](../skills/orchestrator/references/ai_orchestration.md).
+
 ## Completed Milestones
 
 - ✅ **Mintlify skill + MCP:** Skill installed via `npx skills add https://mintlify.com/docs --yes --global` (to `~/.agents/skills/mintlify`, Cursor + others). Project MCP at `.cursor/mcp.json` with `https://mintlify.com/docs/mcp`. Restart Cursor to load MCP.
@@ -55,6 +63,7 @@ None yet.
 - ✅ **Phase 2A.5:** NormalizerRegistry for centralized tool lookup
 - ✅ **Phase 2A.6:** Modified osintAggregator to use normalizers
 - ✅ **Phase 2A.7:** Integration tests (40/40 passing)
+- ✅ **Skills foundation:** Full OSINT skills tree (lens-intelligence, forge-influence, shield-counterintel, orchestrator), langgraph (graph, nodes, tools, schemas), infra placeholders, SKILLS_BEST_PRACTICES.md, run_pipeline.sh, ai_orchestration.md, Cursor command run_skill_pipeline; tests in tests/skills/ (7 passing)
 
 ## Implementation Notes - Phase 2A
 

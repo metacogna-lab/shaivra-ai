@@ -30,6 +30,9 @@ bun run build       # Production build
 bun run lint        # Type checking
 ```
 
+## Design System Rules for Agents
+Every UI or styling change must follow `docs/design-system.md` plus the enforcement checklist in `tasks/agent-design-rules.md`. Reuse the approved Tailwind tokens, typography stack (Space Grotesk / Inter / JetBrains Mono), existing background layers, and component patterns (Navigation, Hero, portal cards, RequestAccessModal). If a deviation is necessary, record it in `tasks/bridge.md` before implementation.
+
 ## Environment Variables
 
 Required in `.env` file:
@@ -60,8 +63,8 @@ LANGSMITH_API_KEY=           # LangSmith tracing (optional)
 | `App.tsx` | Main router - splits landing vs. portal routes |
 | `server.ts` | Express backend with 24+ API endpoints (1131 lines) |
 | `src/services/portalApi.ts` | Frontend API client with mock fallbacks (1074 lines) |
-| `src/types.ts` | Landing page types (GraphNode, Campaign, etc.) |
-| `src/portalTypes.ts` | Portal types (comprehensive pipeline schemas) |
+| `src/contracts/knowledgeGraph.ts` | Landing + graph types (GraphNode, Campaign, etc.) |
+| `src/contracts/portal.ts` | Portal types (comprehensive pipeline schemas) |
 
 ### Intelligence Pipeline (Lens)
 
@@ -411,7 +414,7 @@ export const portalApi = {
 };
 ```
 
-3. **Type Definitions** (`src/portalTypes.ts`):
+3. **Type Definitions** (`src/contracts/portal.ts`):
 ```typescript
 export interface NewEndpointResult {
   data: any;
@@ -474,7 +477,7 @@ The application follows strategic principles in `strategy/core_strategy.md`:
 ## Quick Start for New Features
 
 **Before adding features:**
-1. Read `src/portalTypes.ts` for existing type system
+1. Read `src/contracts/portal.ts` for existing type system
 2. Check `server.ts` for similar endpoints
 3. Review `src/services/portalApi.ts` for API patterns
 4. Use `bun run dev` and test in browser

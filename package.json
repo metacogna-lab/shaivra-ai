@@ -19,6 +19,8 @@
     "railway:migrate": "railway run npx prisma migrate deploy"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1002.0",
+    "@aws-sdk/s3-request-presigner": "^3.1002.0",
     "@google/genai": "^1.42.0",
     "@langchain/core": "^1.1.30",
     "@langchain/google-genai": "^2.1.24",
@@ -38,6 +40,7 @@
     "jsonwebtoken": "^9.0.3",
     "langsmith": "^0.5.7",
     "lucide-react": "^0.575.0",
+    "multer": "^2.1.1",
     "neo4j-driver": "^6.0.1",
     "node-fetch": "^3.3.2",
     "react": "^19.2.4",

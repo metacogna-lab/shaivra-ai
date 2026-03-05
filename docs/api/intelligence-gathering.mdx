@@ -1,0 +1,462 @@
+---
+title: "Intelligence Gathering API"
+description: "REST API for automated OSINT intelligence gathering with smart tool selection"
+sidebarTitle: "Intelligence Gathering"
+badge: "Beta"
+---
+
+## What You'll Accomplish
+
+This API endpoint automatically gathers intelligence from multiple OSINT sources, normalizes the data to a canonical schema, and returns structured entities, observations, and relationships.
+
+**Key Benefits:**
+- No manual tool selection required
+- Parallel execution for speed
+- Normalized output (canonical IntelligenceEvent schema)
+- Built-in error handling and retry logic
+
+## Prerequisites
+
+<Steps>
+  <Step title="API Keys Configured">
+    Set up required API keys in `.env`:
+    ```bash
+    SHODAN_API_KEY=your_key_here
+    VIRUSTOTAL_API_KEY=your_key_here
+    TWITTER_BEARER_TOKEN=your_token_here
+    ```
+  </Step>
+
+  <Step title="Server Running">
+    Start the development server:
+    ```bash
+    bun run dev
+    ```
+  </Step>
+</Steps>
+
+## Endpoint
+
+```http
+POST /api/intelligence/gather
+```
+
+Gathers intelligence from automatically selected OSINT tools based on target type.
+
+### Request Body
+
+```json
+{
+  "target": "example.com",
+  "mode": "fast",
+  "ranked": true,
+  "costAware": false
+}
+```
+
+<ParamField body="target" type="string" required>
+  Investigation target (IP, domain, username, email, organization)
+</ParamField>
+
+<ParamField body="entityType" type="string">
+  Explicit entity type (auto-detected if omitted)
+
+  Options: `person`, `organization`, `infrastructure`, `event`, `unknown`
+</ParamField>
+
+<ParamField body="mode" type="string" default="comprehensive">
+  Gathering mode
+
+  - `fast`: Top 2 tools only (fastest, 50% reduction)
+  - `comprehensive`: All relevant tools (thorough)
+  - `custom`: Use specific tools (requires `tools` parameter)
+</ParamField>
+
+<ParamField body="tools" type="string[]">
+  Custom tool list (only used if `mode: 'custom'`)
+
+  Example: `["shodan", "virustotal"]`
+</ParamField>
+
+<ParamField body="ranked" type="boolean" default={true}>
+  Prioritize tools by signal quality (Layer 1 > Layer 5)
+</ParamField>
+
+<ParamField body="costAware" type="boolean" default={false}>
+  Prefer free tools to minimize API costs
+</ParamField>
+
+### Response
+
+<ResponseField name="target" type="string">
+  The investigation target
+</ResponseField>
+
+<ResponseField name="entityType" type="string">
+  Detected or specified entity type
+</ResponseField>
+
+<ResponseField name="toolsUsed" type="string[]">
+  List of OSINT tools executed
+</ResponseField>
+
+<ResponseField name="events" type="IntelligenceEvent[]">
+  Normalized intelligence events (one per tool)
+
+  Each event contains:
+  - `entities`: Discovered entities with confidence scores
+  - `observations`: Facts about entities with source attribution
+  - `relationships`: Connections between entities
+</ResponseField>
+
+<ResponseField name="errors" type="object[]">
+  Errors from failed tools (empty if all succeeded)
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  Execution statistics
+
+  - `executionTime`: Total time in milliseconds
+  - `successfulTools`: Count of tools that returned data
+  - `failedTools`: Count of tools that failed
+  - `totalEntities`: Sum of all entities discovered
+  - `totalObservations`: Sum of all observations made
+  - `totalRelationships`: Sum of all relationships found
+</ResponseField>
+
+## Examples
+
+### Fast Mode (Infrastructure Target)
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:3000/api/intelligence/gather \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "93.184.216.34",
+    "mode": "fast"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch('/api/intelligence/gather', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    target: '93.184.216.34',
+    mode: 'fast'
+  })
+});
+
+const result = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:3000/api/intelligence/gather',
+    json={
+        'target': '93.184.216.34',
+        'mode': 'fast'
+    }
+)
+
+result = response.json()
+```
+
+</CodeGroup>
+
+<ResponseExample>
+
+```json Response
+{
+  "target": "93.184.216.34",
+  "entityType": "infrastructure",
+  "toolsUsed": ["shodan", "virustotal"],
+  "events": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "tool": "shodan",
+      "target": "93.184.216.34",
+      "status": "success",
+      "entities": [
+        {
+          "id": "ent-001",
+          "type": "infrastructure",
+          "name": "93.184.216.34",
+          "confidence": 0.95,
+          "attributes": {
+            "org": "Example Organization",
+            "country": "United States"
+          }
+        }
+      ],
+      "observations": [
+        {
+          "id": "obs-001",
+          "entityId": "ent-001",
+          "property": "open_port",
+          "value": { "port": 443, "service": "HTTPS" },
+          "confidence": 0.95
+        }
+      ],
+      "relationships": []
+    }
+  ],
+  "errors": [],
+  "metadata": {
+    "executionTime": 2500,
+    "successfulTools": 2,
+    "failedTools": 0,
+    "totalEntities": 2,
+    "totalObservations": 8,
+    "totalRelationships": 0
+  }
+}
+```
+
+</ResponseExample>
+
+### Comprehensive Mode (Person Target)
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:3000/api/intelligence/gather \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target": "@username",
+    "mode": "comprehensive",
+    "ranked": true
+  }'
+```
+
+```typescript TypeScript
+const result = await fetch('/api/intelligence/gather', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    target: '@username',
+    mode: 'comprehensive',
+    ranked: true
+  })
+}).then(r => r.json());
+```
+
+</CodeGroup>
+
+<ResponseExample>
+
+```json Response
+{
+  "target": "@username",
+  "entityType": "person",
+  "toolsUsed": ["twitter", "reddit"],
+  "events": [
+    {
+      "id": "evt-twitter-001",
+      "tool": "twitter",
+      "entities": [
+        {
+          "id": "person-001",
+          "type": "person",
+          "name": "John Doe",
+          "aliases": ["@username", "username"],
+          "confidence": 0.9,
+          "attributes": {
+            "verified": true,
+            "followers": 15000
+          }
+        }
+      ],
+      "observations": [
+        {
+          "property": "social_influence",
+          "value": { "platform": "twitter", "tier": "micro" },
+          "confidence": 0.95
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "executionTime": 1800,
+    "successfulTools": 2,
+    "totalEntities": 2,
+    "totalObservations": 12
+  }
+}
+```
+
+</ResponseExample>
+
+### Custom Tools with Cost Awareness
+
+```bash
+curl -X POST http://localhost:3000/api/intelligence/gather \
+  -H "Content-Type": application/json" \
+  -d '{
+    "target": "example.com",
+    "mode": "custom",
+    "tools": ["alienvault", "reddit"],
+    "costAware": true
+  }'
+```
+
+## Response Codes
+
+| Code | Meaning | Description |
+|------|---------|-------------|
+| `200` | Success | Intelligence gathered successfully |
+| `400` | Bad Request | Missing or invalid `target` parameter |
+| `429` | Rate Limited | Too many requests (check API key quotas) |
+| `500` | Server Error | Internal error (check server logs) |
+| `503` | Service Unavailable | OSINT tool timeout or unavailable |
+
+## Error Handling
+
+:::warning API Key Missing
+If required API keys are not configured, tools will return mock data with a warning in the `errors` array:
+
+```json
+{
+  "errors": [
+    {
+      "tool": "shodan",
+      "error": "SHODAN_API_KEY not configured - using mock data"
+    }
+  ]
+}
+```
+
+Set up API keys in `.env` to use real data.
+:::
+
+### Partial Success
+
+The API uses graceful degradation. If some tools fail, successful tools still return data:
+
+```json
+{
+  "toolsUsed": ["shodan", "virustotal", "alienvault"],
+  "events": [/* shodan and virustotal events */],
+  "errors": [
+    {
+      "tool": "alienvault",
+      "error": "API rate limit exceeded"
+    }
+  ],
+  "metadata": {
+    "successfulTools": 2,
+    "failedTools": 1
+  }
+}
+```
+
+## Performance Optimization
+
+<Tabs>
+  <Tab title="Fast Mode">
+    **Use Case**: Quick triage, dashboard refreshes
+
+    ```json
+    { "mode": "fast" }
+    ```
+
+    - Runs top 2 tools only
+    - 50% faster execution
+    - 33% fewer API calls
+  </Tab>
+
+  <Tab title="Cost-Aware">
+    **Use Case**: Minimize API costs
+
+    ```json
+    { "costAware": true }
+    ```
+
+    - Prioritizes free tools (AlienVault, Reddit)
+    - Falls back to paid tools if needed
+    - Saves on API quota
+  </Tab>
+
+  <Tab title="Comprehensive">
+    **Use Case**: Thorough investigation
+
+    ```json
+    { "mode": "comprehensive" }
+    ```
+
+    - Runs all relevant tools
+    - Maximum coverage
+    - Higher API cost
+  </Tab>
+</Tabs>
+
+## Rate Limiting
+
+The API inherits rate limits from underlying OSINT tools:
+
+| Tool | Free Tier Limit | Recommended Wait |
+|------|----------------|------------------|
+| Shodan | 1 request/second | 1000ms |
+| VirusTotal | 4 requests/minute | 15000ms |
+| Twitter | 300 requests/15min | 3000ms |
+| AlienVault | No limit (free) | 0ms |
+| Reddit | 60 requests/minute | 1000ms |
+
+:::info Automatic Retry
+The system automatically retries failed requests with exponential backoff (1s, 2s, 4s) up to 3 attempts.
+:::
+
+## Validation
+
+<Steps>
+  <Step title="Verify API Response">
+    Check `metadata.successfulTools > 0`:
+    ```typescript
+    if (result.metadata.successfulTools === 0) {
+      console.error('All tools failed:', result.errors);
+    }
+    ```
+  </Step>
+
+  <Step title="Validate Entity Confidence">
+    Filter entities by confidence threshold:
+    ```typescript
+    const highConfidence = result.events
+      .flatMap(e => e.entities)
+      .filter(entity => entity.confidence >= 0.8);
+    ```
+  </Step>
+
+  <Step title="Check Source Attribution">
+    Verify observations have source provenance:
+    ```typescript
+    result.events.forEach(event => {
+      event.observations.forEach(obs => {
+        assert(obs.source.tool, 'Missing source tool');
+        assert(obs.source.timestamp, 'Missing timestamp');
+      });
+    });
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Tool Selection" icon="filter" href="/osint/tool-selection">
+    Learn how tools are automatically selected
+  </Card>
+  <Card title="Canonical Schema" icon="sitemap" href="/osint/canonical-schema">
+    Understand the IntelligenceEvent data model
+  </Card>
+  <Card title="Normalization" icon="shuffle" href="/osint/normalization">
+    See how raw tool outputs transform
+  </Card>
+  <Card title="Custom Tools" icon="wrench" href="/osint/custom-tools">
+    Add your own OSINT tools
+  </Card>
+</CardGroup>

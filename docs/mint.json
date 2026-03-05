@@ -1,0 +1,89 @@
+{
+  "name": "Shaivra Intelligence Suite",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#3B82F6",
+    "light": "#60A5FA",
+    "dark": "#1E40AF",
+    "background": {
+      "dark": "#0F172A"
+    }
+  },
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/metacogna/shaivra-intelligence-suite"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "architecture"
+      ]
+    },
+    {
+      "group": "OSINT System",
+      "pages": [
+        "osint/overview",
+        "osint/tool-selection",
+        "osint/normalization",
+        "osint/canonical-schema",
+        "osint/custom-tools"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api/overview",
+        "api/intelligence-gathering",
+        "api/tool-selection",
+        "api/normalization"
+      ]
+    },
+    {
+      "group": "Platform",
+      "pages": [
+        "platform/authentication",
+        "platform/rate-limiting",
+        "platform/security",
+        "platform/monitoring"
+      ]
+    },
+    {
+      "group": "Operations",
+      "pages": [
+        "operations/deployment",
+        "operations/configuration",
+        "operations/troubleshooting"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/metacogna/shaivra-intelligence-suite",
+    "twitter": "https://twitter.com/metacogna"
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "search": {
+    "prompt": "Search documentation..."
+  },
+  "analytics": {
+    "posthog": {
+      "apiKey": "<your-posthog-api-key>"
+    }
+  }
+}

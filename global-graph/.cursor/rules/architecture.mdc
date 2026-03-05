@@ -1,0 +1,144 @@
+---
+description: Defines the high level architecture boundaries of the Shaivra intelligence system
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# System Architecture Rules
+
+## Core Principle
+
+The Shaivra system is composed of independent services.
+
+Agents must respect service boundaries.
+
+---
+
+# Core Components
+
+
+Ingestion System
+Global Graph
+GraphRAG Retrieval Engine
+Shaivra Application
+
+
+Each component has a distinct responsibility.
+
+---
+
+# Global Graph
+
+Global Graph is the canonical intelligence dataset.
+
+Responsibilities:
+
+- entity storage
+- relationship storage
+- narrative clustering
+- signal indexing
+
+Technology:
+
+
+Memgraph
+Qdrant
+
+
+The Global Graph service owns the data model.
+
+---
+
+# Retrieval Engine
+
+GraphRAG retrieval engine is read-only.
+
+Responsibilities:
+
+- hybrid graph + vector retrieval
+- context assembly
+- hypothesis exploration
+
+It must never modify graph data.
+
+---
+
+# Ingestion System
+
+Ingestion is responsible for:
+
+- collecting sources
+- normalizing signals
+- filtering documents
+
+It outputs normalized signals.
+
+---
+
+# Message Queue
+
+All pipeline stages communicate through a message queue.
+
+Preferred technology:
+
+
+Redpanda
+
+
+Benefits:
+
+- backpressure
+- replay
+- parallel processing
+
+---
+
+# Service Isolation
+
+Code changes must respect module boundaries.
+
+Allowed modifications:
+
+
+/global-graph
+
+
+Disallowed modifications:
+
+
+/frontend
+/ingestion
+/infrastructure
+
+
+If architectural changes are required:
+
+
+STOP
+REQUEST APPROVAL
+
+
+---
+
+# Deployment Model
+
+Each component runs as an independent container.
+
+Example:
+
+
+global-graph-service
+retrieval-service
+ingestion-service
+
+
+All services communicate through APIs or queues.
+
+---
+
+# Performance Goals
+
+
+retrieval latency < 200ms
+vector search < 100ms
+graph traversal < 100ms

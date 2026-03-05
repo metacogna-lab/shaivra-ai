@@ -1,0 +1,58 @@
+---
+name: enrichment
+description: Rules for signal enrichment and intelligence expansion
+globs: ["global-graph/enrichment/**/*"]
+alwaysApply: false
+---
+
+# Enrichment Rules
+
+## Purpose
+
+Enhance signals with additional context before graph insertion.
+
+## Enrichment Types
+
+Signals may be enriched with:
+
+- entity aliases
+- geolocation
+- narrative classification
+- infrastructure mapping
+
+## Techniques
+
+Use deterministic methods:
+
+- NLP pipelines
+- entity resolution
+- embedding similarity
+- knowledge graph traversal
+
+Avoid LLM calls unless strictly necessary.
+
+## Enrichment Timing
+
+Runs after ingestion filtering:
+
+
+01:00 entity extraction
+01:30 enrichment
+02:00 graph build
+
+
+## Output
+
+Enrichment produces:
+
+
+enriched_signal
+
+
+which contains:
+
+
+entities
+relationships
+narrative cluster
+embedding

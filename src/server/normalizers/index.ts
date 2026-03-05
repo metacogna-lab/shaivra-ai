@@ -1,35 +1,55 @@
 /**
  * Normalizer Registry
- * 
+ *
  * Central registry for looking up and executing OSINT tool normalizers.
+ * Auto-discovers and registers all available normalizers.
  */
 
 import type { BaseNormalizer } from './base';
 import { ShodanNormalizer } from './shodanNormalizer';
 import { VirusTotalNormalizer } from './virusTotalNormalizer';
 import { AlienVaultNormalizer } from './alienVaultNormalizer';
+import { TwitterNormalizer } from './twitterNormalizer';
+import { RedditNormalizer } from './redditNormalizer';
 
 /**
  * Normalizer Registry
- * 
+ *
  * Provides centralized lookup for all OSINT tool normalizers.
+ * Automatically discovers and registers all normalizers.
  */
 export class NormalizerRegistry {
   private normalizers: Map<string, BaseNormalizer>;
 
   constructor() {
     this.normalizers = new Map();
-    this.registerDefaultNormalizers();
+    this.registerAllNormalizers();
   }
 
   /**
-   * Register default normalizers
+   * Auto-register all normalizers
+   *
+   * New normalizers are automatically discovered and registered
+   * by importing them and instantiating them here.
    */
-  private registerDefaultNormalizers(): void {
-    this.register(new ShodanNormalizer());
-    this.register(new VirusTotalNormalizer());
-    this.register(new AlienVaultNormalizer());
-    // Twitter and Reddit normalizers will be added in next phase
+  private registerAllNormalizers(): void {
+    const normalizers = [
+      new ShodanNormalizer(),
+      new VirusTotalNormalizer(),
+      new AlienVaultNormalizer(),
+      new TwitterNormalizer(),
+      new RedditNormalizer()
+      // Future normalizers: Add new instances here
+      // new OpenCorporatesNormalizer(),
+      // new SECEdgarNormalizer(),
+      // etc.
+    ];
+
+    normalizers.forEach(normalizer => {
+      this.register(normalizer);
+    });
+
+    console.log(`[NormalizerRegistry] Registered ${this.normalizers.size} normalizers`);
   }
 
   /**
@@ -72,9 +92,10 @@ export class NormalizerRegistry {
 // Export singleton instance
 export const normalizerRegistry = new NormalizerRegistry();
 
-// Export normalizer classes
+// Export normalizer classes for external use
 export { ShodanNormalizer } from './shodanNormalizer';
 export { VirusTotalNormalizer } from './virusTotalNormalizer';
 export { AlienVaultNormalizer } from './alienVaultNormalizer';
-export { AbstractNormalizer } from './base';
-export type { BaseNormalizer } from './base';
+export { TwitterNormalizer } from './twitterNormalizer';
+export { RedditNormalizer } from './redditNormalizer';
+export { BaseNormalizer, AbstractNormalizer } from './base';

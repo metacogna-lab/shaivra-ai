@@ -1,0 +1,55 @@
+---
+name: Integration
+description: Integration rules for external APIs and services
+globs: ["integration/**/*"]
+alwaysApply: false
+---
+
+# Integration Rules
+
+## Purpose
+Ensure stable integrations with external services.
+
+## Allowed Integrations
+
+Examples:
+
+- news APIs
+- NGO registries
+- sanctions datasets
+- OSINT feeds
+- domain registries
+
+## Data Normalization
+
+All external data must transform into:
+
+
+Signal Object
+
+
+Schema:
+
+
+signal_id
+timestamp
+source
+text
+entities
+confidence
+
+
+## Error Handling
+
+All integrations must implement:
+
+- retry logic
+- rate limit handling
+- structured logging
+
+Retries must use exponential backoff.
+
+## Execution Window
+
+Integration services run:
+before ingestion processing begins.

@@ -1,0 +1,51 @@
+---
+name: Testing
+description: Enforces testing requirements across backend and graph components
+globs: ["tests/**/*", "**/*.test.ts"]
+alwaysApply: false
+---
+
+# Testing Rules
+
+## Philosophy
+
+All new functionality must include tests.
+
+Required coverage:
+
+
+graph queries
+signal scoring
+entity resolution
+retrieval logic
+
+
+## Test Types
+
+Use:
+
+- unit tests
+- integration tests
+- pipeline tests
+
+## Example
+
+
+describe("Signal scoring", () => {
+it("should assign higher score to trusted sources", () => {
+...
+})
+})
+
+
+## Execution Timing
+
+Tests must run:
+
+
+before merge
+before release
+after ingestion pipeline updates
+
+
+CI must block merges when tests fail.

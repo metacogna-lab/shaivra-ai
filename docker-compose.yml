@@ -16,6 +16,7 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_BUCKET: ${S3_BUCKET:-shaivra-uploads}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      REDPANDA_BROKERS: ${REDPANDA_BROKERS:-redpanda:9092}
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,6 +40,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://shaivra:shaivra@postgres:5432/shaivra}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      REDPANDA_BROKERS: ${REDPANDA_BROKERS:-redpanda:9092}
       PORT: 4000
     depends_on:
       postgres:
@@ -46,6 +48,8 @@ services:
       redis:
         condition: service_healthy
       qdrant:
+        condition: service_healthy
+      redpanda:
         condition: service_healthy
     profiles: ["test"]
 
@@ -108,8 +112,34 @@ services:
       timeout: 5s
       retries: 5
 
+  redpanda:
+    image: redpandadata/redpanda:v24.2.8
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --overprovisioned
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --set
+      - redpanda.empty_seed_starts_cluster=true
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+      - ./infra/redpanda/redpanda.yaml:/etc/redpanda/redpanda.yaml
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:9644/v1/status/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres-data:
   redis-data:
   qdrant-data:
   minio-data:
+  redpanda-data:

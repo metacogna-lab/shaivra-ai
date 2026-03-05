@@ -1,0 +1,66 @@
+---
+description: Controls ingestion pipeline behavior and source selection for the Global Graph system
+globs: ["ingestion/**/*", "pipelines/**/*"]
+alwaysApply: false
+---
+
+# Ingestion Rules
+
+## Purpose
+Ensure ingestion follows the existing pipeline while constraining sources to high-signal domains.
+
+## Sources
+Use the existing ingestion pipeline. Do NOT redesign ingestion architecture.
+
+Approved signal domains:
+
+- CONFLICT
+- NGO
+- NON-PROFIT
+- ACTIVIST
+- SANCTIONS
+- DISINFORMATION
+- PROPAGANDA
+- HUMAN RIGHTS
+- ADVOCACY
+- LOBBYING
+
+## Source Examples
+Examples of acceptable sources:
+
+- NGO registries
+- humanitarian reports
+- sanctions databases
+- investigative journalism
+- policy reports
+- conflict monitoring systems
+
+Avoid:
+
+- entertainment
+- unrelated commercial news
+- general social chatter
+
+## Filtering
+Signals must pass at least one of:
+
+- keyword match
+- domain classifier
+- entity relevance
+
+Reject low-signal documents early.
+
+## Execution Timing
+
+Ingestion phases run:
+
+
+00:00 source collection
+00:30 preprocessing
+01:00 classification
+
+
+Ingestion must output normalized **Signal objects**.
+
+
+signal → global graph pipeline

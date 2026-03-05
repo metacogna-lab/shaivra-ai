@@ -1,0 +1,101 @@
+---
+name: Python
+description: Python execution rules requiring isolated virtual environments and strict separation from the main TypeScript codebase
+globs: ["python/**/*", "scripts/**/*.py"]
+alwaysApply: false
+---
+
+# Python Environment Rules
+
+## Purpose
+
+Python is used for:
+
+- NLP pipelines
+- embeddings
+- graph analytics
+- ML utilities
+
+Python must NEVER contaminate the main application environment.
+
+---
+
+## Isolation
+
+All Python code must exist inside:
+
+
+/python
+
+
+No Python files may exist in:
+
+
+backend
+global-graph
+integration
+
+
+---
+
+## Virtual Environment
+
+Every Python execution must use a virtual environment.
+
+Required structure:
+
+
+python/
+├ venv/
+├ src/
+├ requirements.txt
+└ scripts/
+
+
+Activate environment before execution:
+
+
+source venv/bin/activate
+
+
+---
+
+## Dependency Rules
+
+Dependencies must be pinned.
+
+Example:
+
+
+sentence-transformers==3.x
+spacy==3.x
+
+
+Never install Python packages globally.
+
+---
+
+## Data Exchange
+
+Python scripts must communicate with the main system through:
+
+
+JSON
+message queues
+REST APIs
+
+
+Python must NOT directly modify the Global Graph database.
+
+---
+
+## Execution Timing
+
+Python pipelines run during enrichment stages:
+
+
+- extraction
+- embeddings
+- enrichment output
+
+3

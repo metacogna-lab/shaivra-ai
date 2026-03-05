@@ -1,0 +1,65 @@
+---
+name: Typescripy
+description: Backend TypeScript architecture and coding rules
+globs: ["backend/**/*.ts", "services/**/*.ts"]
+alwaysApply: false
+---
+
+# Backend TypeScript Rules
+
+## Language
+All backend services MUST be written in TypeScript.
+
+Disallowed:
+
+- plain JavaScript
+- dynamic typing without interfaces
+
+## Required Standards
+
+All functions must include:
+
+- explicit return types
+- typed parameters
+- interface definitions for objects
+
+Example:
+
+
+export function scoreSignal(signal: Signal): number {
+return signal.confidence * signal.sourceWeight
+}
+
+
+## Architecture
+
+Backend services must follow:
+
+
+controller
+service
+repository
+model
+
+
+Business logic belongs in **services**, not controllers.
+
+## External Systems
+
+Backends interact with:
+
+- Memgraph
+- Qdrant
+- Redpanda
+
+Never mix graph queries with HTTP controllers.
+
+## Performance
+
+Avoid synchronous loops over large datasets.
+
+Use:
+
+- async pipelines
+- batch processing
+- streaming APIs

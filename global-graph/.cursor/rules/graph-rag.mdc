@@ -1,0 +1,121 @@
+---
+name: graph-rag
+description: Rules governing GraphRAG retrieval logic, hybrid graph + vector search, and context construction for the Global Graph system
+globs: ["global-graph/**/*", "retrieval/**/*"]
+alwaysApply: false
+---
+
+# GraphRAG Retrieval Rules
+
+## Purpose
+
+Provide deterministic retrieval from the Global Graph using:
+
+- Memgraph (relationships)
+- Qdrant (vector similarity)
+
+The system MUST use hybrid retrieval.
+
+---
+
+## Retrieval Pipeline
+
+GraphRAG retrieval follows this sequence:
+
+1. Query parsing
+2. Entity detection
+3. Vector retrieval (Qdrant)
+4. Graph traversal (Memgraph)
+5. Context ranking
+6. Result assembly
+
+Never skip retrieval steps.
+
+---
+
+## Vector Retrieval
+
+Use Qdrant for semantic search.
+
+Parameters:
+
+
+top_k = 20
+min_similarity = 0.65
+
+
+Payload filters must include:
+
+
+domain_tags
+signal_score
+timestamp
+
+
+---
+
+## Graph Traversal
+
+Memgraph traversal depth:
+
+
+1..3 hops
+
+
+Example query pattern:
+
+
+MATCH (a)-[*1..3]-(b)
+RETURN a,b
+
+
+Avoid traversals >3 hops unless explicitly requested.
+
+---
+
+## Hybrid Ranking
+
+Rank results using:
+
+
+vector_similarity
+signal_score
+graph_centrality
+recency
+
+
+Final results must include:
+
+
+entities
+edges
+documents
+signals
+
+
+---
+
+## LLM Usage
+
+LLMs may only be used for:
+
+- summarization
+- explanation
+- narrative synthesis
+
+LLMs must NOT generate new intelligence facts.
+
+---
+
+## Failure Handling
+
+If graph results are empty:
+
+
+fallback → vector retrieval only
+
+
+If vector results are empty:
+
+
+fallback → graph neighborhood search

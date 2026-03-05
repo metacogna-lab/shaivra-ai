@@ -2,6 +2,69 @@
 
 This file serves as shared memory to prevent implementation drift and conflicting decisions.
 
+## 2026-03-05 - Initphase: Narrative Detection, Gap Detection, Validation & Budget
+
+**Branch:** `feature/initphase-narrative-gap-validation`
+
+**Objective:** Align Narrative Detection Agent and Gap Detection Agent with prompts; document system validation workflow; add investigation budget (time + tool cap); integration test with target=example.com; record Analyst Dashboard, Strategic Intelligence, Security & Governance, and robustness.
+
+**Narrative Detection Agent:**
+- **Prompt:** `langgraphjs/prompts/narrative.ts` — Analyze signals for: Repeated messaging, Shared infrastructure, Temporal synchronization, Cross-platform propagation. Create Narrative entities when clusters appear. Link accounts to narratives using propagation relationships. Calculate influence scores; avoid attribution unless supported by multiple signals.
+
+**Gap Detection Agent:**
+- **Module:** `langgraphjs/nodes/gapDetection.ts` — Ensures intelligence completeness. Checks: Domain without IP, Organization without people, Account without narrative links (when social/profile/account observations present), Infrastructure without owner. Triggers enrichment workflows when gaps appear.
+
+**System Validation Workflow (every deployment):**
+- **Order:** startup → validate schemas → validate registry → validate adapters → validate topics → validate graph schema → validate agent workflows. Implemented in `runPipelineIntegrity()` (see `src/server/integrity/pipelineIntegrity.ts` docblock). GET /api/system/integrity returns full result.
+
+**Integration Test Workflow:**
+- **Test:** `tests/investigationFlow.test.ts` — Pipeline test with target=example.com: graph lookup → gaps → report; asserts result shape and default max tool runs (30). Run: `bun test tests/investigationFlow.test.ts`.
+
+**Investigation Budget Control:**
+- **Module:** `src/server/services/investigationBudget.ts` — `max_tool_calls = 30` (DEFAULT_MAX_TOOL_RUNS_PER_INVESTIGATION), `max_investigation_time = 5 minutes` (DEFAULT_MAX_INVESTIGATION_TIME_MS). `getElapsedMs(investigationId)` for reporting. Prevents runaway scans.
+- **Tests:** `tests/investigationBudget.test.ts` — defaults, consume/remaining, reset, getElapsedMs.
+
+**Recommended (documented for future work):**
+- **Analyst Dashboard:** NextJS, GraphQL API, SigmaJS graph visualisation, Plotly analytics. Views: entity graph, narrative clusters, influence networks, timeline.
+- **Strategic Intelligence (once graph is large):** supply chain mapping, corporate influence detection, policy narrative tracking, coordinated campaign detection.
+- **Security & Governance:** audit logs for tool calls; access control on investigations; signal source validation; data provenance tracking.
+- **Robustness:** Canonical schemas (all signals normalized); Adapter SDK (all tools behave consistently); Graph evidence model (all intelligence traceable).
+
+## 2026-03-05 - Coordinated Narrative & Influence Campaign Detection (initphase)
+
+**Branch:** `feature/coordinated-narrative-detection`
+
+**Objective:** Detect coordinated narratives and influence campaigns from signals (repeated messaging, shared infrastructure, temporal synchronization, cross-platform propagation). Create Narrative entities when clusters appear; link accounts via propagation relationships; compute influence scores without attribution unless multiple signals support it.
+
+**Added (global-graph only):**
+- **Narrative schema:** `global-graph/ontology/objectTypes.ts` — Narrative extended with coordination signal scores (`repeated_messaging_score`, `shared_infrastructure_score`, `temporal_sync_score`, `cross_platform_score`), `influence_score` (0–1), and `attribution_supported` (true only when ≥2 signal dimensions present). `narrativeCoordinationSignalsSchema` and type exported.
+- **Narrative queries:** `global-graph/queries/narrativeQueries.ts` — `queryNarrativeClusters()` (narratives with Message/Account clusters via ORIGINATES/PROPAGATES), `queryAccountsPropagatingNarrative()` (Account-[PROPAGATES]->Narrative), `queryNarrativesByInfluence()` (ordered by influence_score; optional minInfluence and attributionOnly). `computeInfluenceFromSignals()` computes influence_score and attribution_supported; `MIN_SIGNALS_FOR_ATTRIBUTION = 2`.
+- **Builder:** `global-graph/builders/intelligenceEventToGraph.ts` — Narrative node op passes through coordination and influence attributes from `entities_detected[].attributes`.
+- **Schema:** `global-graph/schema/memgraph.cypher` — indexes on `Narrative(influence_score)` and `Narrative(attribution_supported)`.
+- **Tests:** `tests/global-graph/queries/narrativeQueries.test.ts` (cluster/propagation/influence query shape and params; computeInfluenceFromSignals behaviour; MIN_SIGNALS_FOR_ATTRIBUTION). Narrative-with-attributes test in `tests/global-graph/builders/intelligenceEventToGraph.test.ts`.
+
+**Usage:** Upstream ingestion/analytics should set Narrative `attributes` (and optionally call `computeInfluenceFromSignals` + `coordinationSignalsToInfluenceInput`) when clusters appear. Retrieval uses `queryNarrativeClusters`, `queryAccountsPropagatingNarrative`, and `queryNarrativesByInfluence` for read-only views. Do not attribute campaigns to actors unless `attribution_supported` is true.
+
+## 2026-03-05 - OSINT Adapter Validation (initphase)
+
+**Branch:** `feature/osint-adapter-validation`
+
+**Objective:** Validate all OSINT tool adapters against the canonical contract (docs/osint/04-tool-contracts.md): reachable, entity types match registry, emit canonical signals, rate limiting and retry configured.
+
+**Added:**
+- **Module:** `src/server/integrity/adapterValidation.ts` — `validateOsintAdapters()` runs four checks per registered tool: (1) **Reachable:** integration module exists in `src/server/integrations` or SDK `hasAdapter(toolName)`. (2) **Entity types:** non-empty, values in contract set; flags if registry uses only `infrastructure` instead of contract’s `domain|ip|email`. (3) **Canonical signals:** normalizer produces output that passes `intelligenceEventSchema` (minimal fixtures per tool). (4) **Rate/retry:** integration has 429 handling and retry/backoff where applicable (static map: shodan, alienvault, virustotal full; twitter, reddit 429 only; theharvester/sherlock subprocess/cache only).
+- **Route:** `GET /api/system/adapters` returns `{ ok, checks, deviations }`. Status 503 when any adapter deviates.
+- **Tests:** `tests/server/adapterValidation.test.ts` — structure, reachability, entity deviation, canonical signals for all five normalizers, deviations array.
+- **Exports:** `src/server/integrity/index.ts` exports `validateOsintAdapters`, `AdapterCheck`, `AdapterValidationResult`.
+
+**Current deviations (as of branch):**
+- **Entity types:** All infrastructure tools use `infrastructure`; contract 04 recommends `domain|ip|email` for routing — consider extending registry.
+- **No normalizer:** spiderfoot, reconng, theharvester, securitytrails, epieos — no normalizer; cannot emit canonical IntelligenceEvent.
+- **Not reachable:** spiderfoot, reconng, securitytrails, epieos — no integration module (SDK adapters can be registered separately).
+- **Rate/retry:** twitter, reddit — 429 handling only, no retry/backoff. theharvester — subprocess/cache only, no 429 or retry in code.
+
+**Run:** `bun test tests/server/adapterValidation.test.ts` or `GET /api/system/adapters`.
+
 ## 2026-03-05 - Graph Structural Integrity (initphase)
 
 **Branch:** `feature/graph-structural-integrity`

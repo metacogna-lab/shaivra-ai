@@ -103,4 +103,31 @@ describe('Investigation flow (company domain example)', () => {
     expect(contents).not.toContain('raw_response');
     expect(contents).not.toContain('api_response');
   });
+
+  it('integration: pipeline test target=example.com (graph lookup → gaps → report)', async () => {
+    mockGetMasterGraph.mockResolvedValue({
+      nodes: [{ uuid: 'n1', label: 'example.com', type: 'Infrastructure' }],
+      links: [],
+      metadata: {},
+    });
+
+    const result = await runInvestigation({
+      target: 'example.com',
+      entityType: 'infrastructure',
+      budget: { maxToolRuns: 0 },
+    });
+
+    expect(graphRepository.getMasterGraph).toHaveBeenCalled();
+    expect(result.graphSnapshot).toBeDefined();
+    expect(result.report).toBeTruthy();
+    expect(result.graphSnapshot.entities).toEqual(expect.any(Array));
+    expect(result.graphSnapshot.observations).toEqual(expect.any(Array));
+    expect(result.graphSnapshot.relationships).toEqual(expect.any(Array));
+    expect(result.traceId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('uses default max tool runs of 30 when budget not provided', async () => {
+    const { DEFAULT_INVESTIGATION_MAX_TOOL_RUNS } = await import('../langgraphjs/index');
+    expect(DEFAULT_INVESTIGATION_MAX_TOOL_RUNS).toBe(30);
+  });
 });

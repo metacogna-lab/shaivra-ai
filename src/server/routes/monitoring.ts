@@ -22,17 +22,20 @@ router.get('/llm-calls', authenticate, adminOnly, async (req: Request, res: Resp
 
     res.json({
       total: calls.length,
-      calls: calls.map(call => ({
-        id: call.id,
-        timestamp: call.createdAt,
-        invocation_id: call.details?.invocation_id,
-        invocation_hash: call.details?.invocation_hash,
-        model: call.details?.model,
-        investigation_uuid: call.details?.investigation_uuid,
-        duration_ms: call.details?.duration_ms,
-        action: call.action,
-        user: call.user
-      }))
+      calls: calls.map(call => {
+        const details = (call.details as any) || {};
+        return {
+          id: call.id,
+          timestamp: call.createdAt,
+          invocation_id: details.invocation_id,
+          invocation_hash: details.invocation_hash,
+          model: details.model,
+          investigation_uuid: details.investigation_uuid,
+          duration_ms: details.duration_ms,
+          action: call.action,
+          user: call.user
+        };
+      })
     });
   } catch (error: any) {
     console.error('[LLM Calls]', error);
@@ -47,20 +50,24 @@ router.get('/investigation/:investigationUUID/traces', authenticate, async (req:
   const { investigationUUID } = req.params;
 
   try {
-    const traces = await getInvestigationTraces(investigationUUID, req.user!.userId);
+    // @ts-ignore - Express type definitions don't properly infer userId as string
+    const traces = await getInvestigationTraces(investigationUUID, req.user?.userId || '');
 
     res.json({
       investigationUUID,
       totalTraces: traces.length,
-      traces: traces.map(t => ({
-        timestamp: t.createdAt,
-        invocation_id: t.details?.invocation_id,
-        invocation_hash: t.details?.invocation_hash,
-        model: t.details?.model,
-        duration_ms: t.details?.duration_ms,
-        prompt_length: t.details?.prompt_length,
-        response_length: t.details?.response_length
-      }))
+      traces: traces.map(t => {
+        const details = (t.details as any) || {};
+        return {
+          timestamp: t.createdAt,
+          invocation_id: details.invocation_id,
+          invocation_hash: details.invocation_hash,
+          model: details.model,
+          duration_ms: details.duration_ms,
+          prompt_length: details.prompt_length,
+          response_length: details.response_length
+        };
+      })
     });
   } catch (error: any) {
     console.error('[Investigation Traces]', error);
@@ -73,10 +80,11 @@ router.get('/investigation/:investigationUUID/traces', authenticate, async (req:
  */
 router.get('/investigation/:investigationUUID/lineage', authenticate, async (req: Request, res: Response) => {
   const { investigationUUID } = req.params;
-  const { target = 'unknown' } = req.query;
+  const targetParam = Array.isArray(req.query.target) ? req.query.target[0] : (req.query.target as string || 'unknown');
 
   try {
-    const lineage = await createInvestigationLineage(investigationUUID, req.user!.userId, target as string);
+    // @ts-ignore - Express type definitions don't properly infer userId as string
+    const lineage = await createInvestigationLineage(investigationUUID, req.user?.userId || '', targetParam);
 
     res.json({
       ...lineage,
@@ -93,17 +101,18 @@ router.get('/investigation/:investigationUUID/lineage', authenticate, async (req
  */
 router.get('/investigation/:investigationUUID/audit', authenticate, async (req: Request, res: Response) => {
   const { investigationUUID } = req.params;
-  const { format = 'json' } = req.query;
+  const formatParam = (Array.isArray(req.query.format) ? req.query.format[0] : req.query.format) || 'json';
 
   try {
+    // @ts-ignore - Express type definitions don't properly infer userId as string
     const audit = await exportInvestigationAudit(
       investigationUUID,
-      req.user!.userId,
-      format as 'json' | 'csv'
+      req.user?.userId || '',
+      formatParam as 'json' | 'csv'
     );
 
-    res.set('Content-Type', format === 'csv' ? 'text/csv' : 'application/json');
-    res.set('Content-Disposition', `attachment; filename="audit-${investigationUUID}.${format === 'csv' ? 'csv' : 'json'}"`);
+    res.set('Content-Type', formatParam === 'csv' ? 'text/csv' : 'application/json');
+    res.set('Content-Disposition', `attachment; filename="audit-${investigationUUID}.${formatParam === 'csv' ? 'csv' : 'json'}"`);
     res.send(audit);
   } catch (error: any) {
     console.error('[Audit Export]', error);
@@ -151,9 +160,15 @@ router.get('/stats', authenticate, adminOnly, async (req: Request, res: Response
     const geminiCallStats = {
       total: llmCalls.filter(c => c.action === 'gemini_call').length,
       failed: llmCalls.filter(c => c.action === 'gemini_call_failed').length,
-      totalDuration: llmCalls.reduce((sum, c) => sum + (c.details?.duration_ms || 0), 0),
+      totalDuration: llmCalls.reduce((sum, c) => {
+        const details = (c.details as any) || {};
+        return sum + (details.duration_ms || 0);
+      }, 0),
       averageDuration: Math.round(
-        llmCalls.reduce((sum, c) => sum + (c.details?.duration_ms || 0), 0) / llmCalls.length
+        llmCalls.reduce((sum, c) => {
+          const details = (c.details as any) || {};
+          return sum + (details.duration_ms || 0);
+        }, 0) / Math.max(llmCalls.length, 1)
       )
     };
 

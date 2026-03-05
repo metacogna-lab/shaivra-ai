@@ -25,6 +25,19 @@
 3. Replace the mocked Lens pipeline by wiring each step to queued worker jobs that emit events back to the UI.
 4. Expand automated tests to cover new tool adapters and queue lifecycles.
 
+## Pipeline: Standardise & Deduplicate
+
+Step **after ingestion** (and after per-tool normalization) in the intelligence-gathering flow. Part of the **intelligence gathering** step (orchestrator and future Lens backend). See [docs/ingestion-and-concerns.md](docs/ingestion-and-concerns.md) for the full chain: Ingest → Normalize → **Standardise & Deduplicate** → Enrich.
+
+**Responsibilities:**
+
+- **Unique identifier:** Every entity has one canonical unique ID. After merge, one ID per real-world entity; observations and relationships reference this ID.
+- **Name-variant deduplication:** Handles (e.g. @elonmusk), display names (Elon Musk, elon musk), and misspellings are compared with content (canonical name + aliases) and fuzzy matching so they resolve to the same entity. Variants are retained in `aliases` for future matching.
+- **Standardisation:** Canonical entity identity (type + normalised key), normalised names (domains lowercased, trim; persons/orgs: lowercase, trim, strip leading `@`), schema compliance.
+- **Merge:** Duplicate entities, observations, and relationships across `IntelligenceEvent[]` are merged so downstream steps see a single coherent set.
+
+**Current state:** Normalizers produce canonical schema per tool; cross-event standardisation and deduplication are implemented in `src/server/services/standardiseAndDeduplicate.ts` and invoked by the intelligence orchestrator after tool execution.
+
 ## Tooling Backlog
 - **SpiderFoot Agent**: Package SpiderFoot CLI scans as reusable worker tasks that emit structured JSON to the master graph.
 - **IntelOwl Connector**: Wrap IntelOwl analyzers behind `/api/osint/*` so secrets, caching, and rate limits are centralized.

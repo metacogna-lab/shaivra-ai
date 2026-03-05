@@ -10,6 +10,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://shaivra:shaivra@postgres:5432/shaivra}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      MEMGRAPH_URI: ${MEMGRAPH_URI:-bolt://memgraph:7687}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -17,6 +18,10 @@ services:
       S3_BUCKET: ${S3_BUCKET:-shaivra-uploads}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       REDPANDA_BROKERS: ${REDPANDA_BROKERS:-redpanda:9092}
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-shaivra-intel}
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,6 +45,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://shaivra:shaivra@postgres:5432/shaivra}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      MEMGRAPH_URI: ${MEMGRAPH_URI:-bolt://memgraph:7687}
       REDPANDA_BROKERS: ${REDPANDA_BROKERS:-redpanda:9092}
       PORT: 4000
     depends_on:
@@ -47,6 +53,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      memgraph:
+        condition: service_started
       qdrant:
         condition: service_healthy
       redpanda:
@@ -112,6 +120,15 @@ services:
       timeout: 5s
       retries: 5
 
+  memgraph:
+    image: memgraph/memgraph:2.20
+    command: ["--log-level=INFO"]
+    ports:
+      - "7687:7687"
+      - "7444:7444"
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+
   redpanda:
     image: redpandadata/redpanda:v24.2.8
     command:
@@ -142,4 +159,5 @@ volumes:
   redis-data:
   qdrant-data:
   minio-data:
+  memgraph-data:
   redpanda-data:

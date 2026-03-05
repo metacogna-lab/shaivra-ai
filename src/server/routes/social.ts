@@ -67,7 +67,8 @@ router.get('/aggregate', authenticate, searchLimiter, validateQuery(osintQuerySc
   const { query, platforms = 'twitter,reddit', limit = 25 } = req.query;
 
   try {
-    const platformList = (platforms as string)
+    const platformStr: string = Array.isArray(platforms) ? String(platforms[0]) : String(platforms || 'twitter,reddit');
+    const platformList = (platformStr as string)
       .split(',')
       .filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
 
@@ -97,10 +98,12 @@ router.get('/monitor/:username', authenticate, searchLimiter, async (req: Reques
   const { platforms = 'twitter,reddit' } = req.query;
 
   try {
-    const platformList = (platforms as string)
+    const platformStr: string = Array.isArray(platforms) ? String(platforms[0]) : String(platforms || 'twitter,reddit');
+    const platformList = (platformStr as string)
       .split(',')
       .filter(p => p === 'twitter' || p === 'reddit') as ('twitter' | 'reddit')[];
 
+    // @ts-ignore - Type inference issue with platformList
     const data = await monitorUser(username, platformList);
 
     await auditLogRepository.create({

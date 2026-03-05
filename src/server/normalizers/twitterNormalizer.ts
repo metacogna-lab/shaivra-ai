@@ -5,7 +5,7 @@
  */
 
 import { AbstractNormalizer } from './base';
-import type { IntelligenceEvent, EntityReference, Observation } from '../../types/intelligence';
+import type { IntelligenceEvent, EntityReference, Observation } from '../../contracts/intelligence';
 
 // Twitter API response types (simplified - full types from integration)
 export interface TwitterUserData {

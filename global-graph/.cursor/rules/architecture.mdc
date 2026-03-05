@@ -1,144 +1,46 @@
 ---
-description: Defines the high level architecture boundaries of the Shaivra intelligence system
+description: High-level architecture boundaries for Shaivra intelligence system
 globs: ["**/*"]
 alwaysApply: true
 ---
 
-# System Architecture Rules
+# Architecture Rules
 
-## Core Principle
-
-The Shaivra system is composed of independent services.
-
-Agents must respect service boundaries.
+**Principle:** Shaivra is a set of independent services. Agents and code must respect service/module boundaries.
 
 ---
 
-# Core Components
+## Components & Responsibilities
 
-
-Ingestion System
-Global Graph
-GraphRAG Retrieval Engine
-Shaivra Application
-
-
-Each component has a distinct responsibility.
-
----
-
-# Global Graph
-
-Global Graph is the canonical intelligence dataset.
-
-Responsibilities:
-
-- entity storage
-- relationship storage
-- narrative clustering
-- signal indexing
-
-Technology:
-
-
-Memgraph
-Qdrant
-
-
-The Global Graph service owns the data model.
+- **Ingestion:** Collects sources, normalizes and filters signals, outputs normalized data.
+- **Global Graph:** Canonical intelligence dataset. Stores entities, relationships, clusters narratives, indexes signals. Owns the data model.  
+  Tech: Memgraph, Qdrant.
+- **Retrieval Engine:** Read-only. Graph/vector retrieval, context assembly, hypothesis exploration. Must *never* modify graph data.
+- **Message Queue:** All pipelines communicate through a queue.  
+  Tech: Redpanda.  
+  Benefits: backpressure, replay, parallel processing.
+- **Application:** User/agent front-end.
 
 ---
 
-# Retrieval Engine
+## Deployment
 
-GraphRAG retrieval engine is read-only.
-
-Responsibilities:
-
-- hybrid graph + vector retrieval
-- context assembly
-- hypothesis exploration
-
-It must never modify graph data.
+Each component is a separate container (e.g. `global-graph-service`, `retrieval-service`, `ingestion-service`).  
+Services communicate via APIs or message queue.
 
 ---
 
-# Ingestion System
+## Module Boundaries
 
-Ingestion is responsible for:
-
-- collecting sources
-- normalizing signals
-- filtering documents
-
-It outputs normalized signals.
+- Allowed code modifications: `/global-graph`
+- Disallowed: `/frontend`, `/ingestion`, `/infrastructure`
+- Need architectural change?  
+  **STOP. REQUEST APPROVAL.**
 
 ---
 
-# Message Queue
+## Performance Goals
 
-All pipeline stages communicate through a message queue.
-
-Preferred technology:
-
-
-Redpanda
-
-
-Benefits:
-
-- backpressure
-- replay
-- parallel processing
-
----
-
-# Service Isolation
-
-Code changes must respect module boundaries.
-
-Allowed modifications:
-
-
-/global-graph
-
-
-Disallowed modifications:
-
-
-/frontend
-/ingestion
-/infrastructure
-
-
-If architectural changes are required:
-
-
-STOP
-REQUEST APPROVAL
-
-
----
-
-# Deployment Model
-
-Each component runs as an independent container.
-
-Example:
-
-
-global-graph-service
-retrieval-service
-ingestion-service
-
-
-All services communicate through APIs or queues.
-
----
-
-# Performance Goals
-
-
-retrieval latency < 200ms
-vector search < 100ms
-graph traversal < 100ms
+- Retrieval latency < 200ms
+- Vector search < 100ms
+- Graph traversal < 100ms

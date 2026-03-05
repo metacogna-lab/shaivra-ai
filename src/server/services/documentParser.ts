@@ -1,6 +1,6 @@
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
-import { GoogleGenAI } from '@google/genai';
+import { callTrackedGemini, ensureTransactionId, LineageInfo } from './llmClient';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client, BUCKET_NAME } from '../storage/s3Client';
 import { Readable } from 'stream';
@@ -35,6 +35,10 @@ export interface DocumentAnalysis {
   recommendations: string[];
   full_text_length: number;
   analyzed_at: string;
+  lineage: {
+    chunks: LineageInfo[];
+    summary: LineageInfo;
+  };
 }
 
 /**

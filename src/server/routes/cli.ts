@@ -90,11 +90,11 @@ router.post('/theharvester', authenticate, searchLimiter, async (req: Request, r
  */
 router.get('/job/:jobId', authenticate, async (req: Request, res: Response) => {
   const { jobId } = req.params;
-  const { queue = 'sherlock' } = req.query;
+  const queueName = (Array.isArray(req.query.queue) ? req.query.queue[0] : req.query.queue) || 'sherlock';
 
   try {
-    const targetQueue = queue === 'theharvester' ? theharvesterQueue : sherlockQueue;
-    const status = await getJobStatus(targetQueue, jobId);
+    const targetQueue = queueName === 'theharvester' ? theharvesterQueue : sherlockQueue;
+    const status = await getJobStatus(targetQueue, jobId as string);
 
     res.json(status);
   } catch (error: any) {

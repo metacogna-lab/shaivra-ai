@@ -1,6 +1,5 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import cookieParser from "cookie-parser";
@@ -47,6 +46,9 @@ import { investigationRepository } from "./src/server/repositories/investigation
 import { auditLogRepository } from "./src/server/repositories/auditLogRepository";
 import { graphRepository } from "./src/server/repositories/graphRepository";
 
+// LLM Integration
+import { GoogleGenAI } from "@google/genai";
+
 // OSINT Services
 import { aggregateOSINTData, quickOSINTLookup } from "./src/server/services/osintAggregator";
 import { searchShodan, getShodanHost } from "./src/server/integrations/shodan";
@@ -78,6 +80,7 @@ import { ExpressAdapter } from '@bull-board/express';
 // Document Processing
 import multer from 'multer';
 import { processDocument, parsePDF, parseDOCX, parseTXT, analyzeDocument } from './src/server/services/documentParser';
+import { callTrackedGemini, ensureTransactionId, LineageInfo } from "./src/server/services/llmClient";
 
 // Modular Routes (Phase 4 Refactoring)
 import authRoutes from './src/server/routes/auth';
@@ -92,6 +95,11 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+const getTransactionIdFromRequest = (req: express.Request): string => {
+  return ensureTransactionId((req.headers['x-transaction-id'] as string) || undefined);
+};
+
 
 type MasterGraph = {
   nodes: any[];
@@ -166,27 +174,25 @@ const updateMasterGraph = async (newNodes: any[], newLinks: any[]) => {
 };
 
 // --- Agent Network Logic ---
-const runAgentNetwork = async (target: string, goal: string, initialData: any) => {
+const runAgentNetwork = async (target: string, goal: string, initialData: any, transactionId?: string) => {
+  const txnId = ensureTransactionId(transactionId);
   let certainty = 0;
   let iterations = 0;
   const maxIterations = 5;
   let currentData = { ...initialData };
   let logs: string[] = [];
   let citations: any[] = [];
+  const lineageTrail: LineageInfo[] = [];
 
   console.log(`[AGENT-NETWORK] Starting investigation for ${target} - Goal: ${goal}`);
 
   while (certainty < 80 && iterations < maxIterations) {
     iterations++;
     console.log(`[AGENT-NETWORK] Iteration ${iterations} - Current Certainty: ${certainty}%`);
-    
-    // Simulate quantitative analysis and comparative evaluation
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    
-    // Truncate currentData to avoid token limit
+
     const truncatedData = JSON.stringify(currentData).substring(0, 2000);
-    
-    const response = await ai.models.generateContent({
+
+    const llmCall = await callTrackedGemini("agent-network-iteration", {
       model: "gemini-2.0-flash-exp",
       contents: `You are a Supervisor Agent in the Shaivra Intelligence Suite. 
       Target: ${target}
@@ -209,9 +215,11 @@ const runAgentNetwork = async (target: string, goal: string, initialData: any) =
         "is_satisfied": boolean
       }`,
       config: { responseMimeType: "application/json" }
-    });
+    }, txnId, { target, goal, iteration: iterations });
 
-    const result = JSON.parse(response.text);
+    lineageTrail.push(llmCall.lineage);
+
+    const result = JSON.parse(llmCall.response.text);
     certainty = result.new_certainty;
     logs.push(...result.logs);
     citations.push(...result.citations);
@@ -220,7 +228,7 @@ const runAgentNetwork = async (target: string, goal: string, initialData: any) =
     if (result.is_satisfied && certainty >= 80) break;
   }
 
-  return { target, certainty, data: currentData, logs, citations };
+  return { target, certainty, data: currentData, logs, citations, lineage: lineageTrail };
 };
 
 // --- Langsmith Integration (Mock/Production Ready) ---
@@ -241,48 +249,49 @@ const traceAgentAction = async (action: string, input: any, output: any) => {
 
 // 1. Google Search via Gemini (Protected: requires authentication, rate limited, validated)
 app.post("/api/search",
-  authenticate, // Require authentication
-  anyAuthenticated, // Any authenticated user can search
-  searchLimiter, // Apply search-specific rate limit
-  aiLimiter, // Also apply AI endpoint rate limit
-  validateBody(searchSchema), // Validate request body
+  authenticate,
+  anyAuthenticated,
+  searchLimiter,
+  aiLimiter,
+  validateBody(searchSchema),
   async (req, res) => {
-    const { query, traceId: parentTraceId } = req.body;
+    const { query } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
     }
 
+    const transactionId = getTransactionIdFromRequest(req);
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash-exp", // Using a model that supports search grounding
+      const llmCall = await callTrackedGemini("web_search", {
+        model: "gemini-2.0-flash-exp",
         contents: query,
         config: {
           tools: [{ googleSearch: {} }],
         },
+      }, transactionId);
+
+      const response = llmCall.response;
+      const text = response.text;
+      const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+      const sources = groundingMetadata?.groundingChunks?.map((chunk: any) => ({
+        title: chunk.web?.title,
+        uri: chunk.web?.uri
+      })).filter((s: any) => s.uri) || [];
+
+      res.json({
+        text,
+        sources,
+        lineage: llmCall.lineage,
+        raw: response
       });
-
-    const text = response.text;
-    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-    const sources = groundingMetadata?.groundingChunks?.map((chunk: any) => ({
-      title: chunk.web?.title,
-      uri: chunk.web?.uri
-    })).filter((s: any) => s.uri) || [];
-
-    const traceId = await traceAgentAction("web_search", { query }, { text, sources });
-
-    res.json({
-      text,
-      sources,
-      traceId,
-      raw: response
-    });
-  } catch (error: any) {
-    console.error("Search Error:", error);
-    res.status(500).json({ error: error.message });
+    } catch (error: any) {
+      console.error("Search Error:", error);
+      res.status(500).json({ error: error.message });
+    }
   }
-});
+);
 
 // 2. OSINT: Shodan (with retry logic and caching)
 app.get("/api/osint/shodan", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
@@ -695,17 +704,18 @@ app.post("/api/summarize", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("summarize-osint", {
       model: "gemini-2.0-flash-exp",
       contents: `Analyze the following OSINT data for the target "${target}" and provide a rich, human-readable summary of the key security insights, risks, and recommended next steps. 
       
       Data:
       ${JSON.stringify(data, null, 2)}`,
-    });
+    }, transactionId, { target });
 
-    res.json({ summary: response.text });
+    res.json({ summary: llmCall.response.text, lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -719,17 +729,17 @@ app.post("/api/report", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    // SEED AGENT NETWORK: Refine data before report generation if certainty is low
     const agentResult = await runAgentNetwork(
       target,
       `Refine intelligence for strategic report on ${target}`,
-      pipelineData
+      pipelineData,
+      transactionId
     );
 
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("strategic-report", {
       model: "gemini-2.0-flash-exp",
       contents: `Generate a comprehensive Strategic Threat Assessment and Network Analysis report for the target "${target}" based on the following refined intelligence. 
       
@@ -766,14 +776,16 @@ app.post("/api/report", async (req, res) => {
       config: {
         responseMimeType: "application/json"
       }
-    });
+    }, transactionId, { target });
 
-    const report = JSON.parse(response.text);
+    const report = JSON.parse(llmCall.response.text);
     res.json({
       ...report,
       agent_certainty: agentResult.certainty,
       agent_logs: agentResult.logs,
-      citations: agentResult.citations
+      citations: agentResult.citations,
+      agent_lineage: agentResult.lineage,
+      lineage: llmCall.lineage
     });
   } catch (error: any) {
     console.error("Report Generation Error:", error);
@@ -789,9 +801,10 @@ app.get("/api/osint/fingerprint", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("fingerprint-site", {
       model: "gemini-2.0-flash-exp",
       contents: `Perform a technical architecture fingerprinting for the website: ${url}. 
       Identify the likely technology stack, architecture patterns, API endpoints, and cloud-based assets. 
@@ -808,9 +821,9 @@ app.get("/api/osint/fingerprint", async (req, res) => {
       config: {
         responseMimeType: "application/json"
       }
-    });
+    }, transactionId, { url });
 
-    res.json(JSON.parse(response.text));
+    res.json({ ...JSON.parse(llmCall.response.text), lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -824,9 +837,10 @@ app.post("/api/analytics/summary", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("analytics-summary", {
       model: "gemini-2.0-flash-exp",
       contents: `Generate a rich intelligence summary for the target "${target}" in the "${sector}" sector. 
       Analyze across these domains: Organizational, Disinformation, Financial Obfuscation, Cyber Infrastructure, and Geopolitical.
@@ -850,9 +864,9 @@ app.post("/api/analytics/summary", async (req, res) => {
       config: {
         responseMimeType: "application/json"
       }
-    });
+    }, transactionId, { target, sector });
 
-    res.json(JSON.parse(response.text));
+    res.json({ ...JSON.parse(llmCall.response.text), lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -866,11 +880,10 @@ app.post("/api/search/filtered", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    // First, get raw search results
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("filtered-search", {
       model: "gemini-2.0-flash-exp",
       contents: `Search the web for information regarding "${organization}" and its competitors "${targets.join(', ')}". 
       Filter the results to include ONLY highly relevant strategic intelligence.
@@ -890,22 +903,24 @@ app.post("/api/search/filtered", async (req, res) => {
       config: {
         responseMimeType: "application/json"
       }
-    });
+    }, transactionId, { organization, targets });
 
-    const initialResults = JSON.parse(response.text);
+    const initialResults = JSON.parse(llmCall.response.text);
 
-    // SEED AGENT NETWORK: Refine results until 80% certainty
     const agentResult = await runAgentNetwork(
-      organization, 
+      organization,
       `Refine strategic intelligence for ${organization} and competitors ${targets.join(', ')}`,
-      initialResults
+      initialResults,
+      transactionId
     );
 
     res.json({
       results: agentResult.data,
       certainty: agentResult.certainty,
       agent_logs: agentResult.logs,
-      citations: agentResult.citations
+      citations: agentResult.citations,
+      agent_lineage: agentResult.lineage,
+      lineage: llmCall.lineage
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -920,9 +935,10 @@ app.post("/api/bot/start", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("autonomous-bot", {
       model: "gemini-2.0-flash-exp",
       contents: `You are an autonomous search bot. Your goal is to build sector intuition and knowledge for the "${sector}" sector with a focus on "${focus}".
       Simulate a loop of searching, synthesizing, and mapping resources.
@@ -943,9 +959,9 @@ app.post("/api/bot/start", async (req, res) => {
       config: {
         responseMimeType: "application/json"
       }
-    });
+    }, transactionId, { sector, focus });
 
-    res.json(JSON.parse(response.text));
+    res.json({ ...JSON.parse(llmCall.response.text), lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -957,17 +973,16 @@ app.get("/api/admin/reports/daily", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    // Simulate gathering all public searches from the last 24h
     const recentSearches = searchHistory.filter(h => {
       const searchDate = new Date(h.timestamp);
       const now = new Date();
       return (now.getTime() - searchDate.getTime()) < 24 * 60 * 60 * 1000;
     });
 
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("admin-daily-report", {
       model: "gemini-2.0-flash-exp",
       contents: `Generate a daily intelligence summary report based on the following recent searches: ${JSON.stringify(recentSearches)}.
       Also, contribute these findings to the Master Graph.
@@ -989,21 +1004,19 @@ app.get("/api/admin/reports/daily", async (req, res) => {
         }
       }`,
       config: { responseMimeType: "application/json" }
-    });
+    }, transactionId);
 
-    const report = JSON.parse(response.text);
+    const report = JSON.parse(llmCall.response.text);
 
-    // Save to database
     await reportRepository.create({
       type: 'DAILY',
       data: report,
       summary: report.summary
     });
 
-    // Update Master Graph
     updateMasterGraph(report.graph_updates.nodes, report.graph_updates.links);
 
-    res.json(report);
+    res.json({ ...report, lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1013,15 +1026,14 @@ app.get("/api/admin/reports/daily", async (req, res) => {
 app.get("/api/admin/reports/weekly", async (req, res) => {
   if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Missing API Key" });
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    // Focus on NGO/Gov/Activist sources
     const ngoData = masterGraph.nodes.filter((n: any) => 
       ['NGO', 'Government', 'Activist'].includes(n.type)
     );
 
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("admin-weekly-report", {
       model: "gemini-2.0-flash-exp",
       contents: `Perform a WEEKLY STRATEGIC REVIEW of the following NGO/Gov/Activist data: ${JSON.stringify(ngoData)}.
       
@@ -1041,18 +1053,17 @@ app.get("/api/admin/reports/weekly", async (req, res) => {
         "human_readable_summary": "..."
       }`,
       config: { responseMimeType: "application/json" }
-    });
+    }, transactionId);
 
-    const report = JSON.parse(response.text);
+    const report = JSON.parse(llmCall.response.text);
 
-    // Save to database
     await reportRepository.create({
       type: 'WEEKLY',
       data: report,
       summary: report.summary
     });
 
-    res.json(report);
+    res.json({ ...report, lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1089,9 +1100,9 @@ app.post("/api/forge/analyze", async (req, res) => {
     return res.status(500).json({ error: "GEMINI_API_KEY is not configured." });
   }
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
     // Heuristics Description (for the model and logs)
     const heuristics = `
       HEURISTICS APPLIED:
@@ -1101,7 +1112,7 @@ app.post("/api/forge/analyze", async (req, res) => {
       4. CONTRADICTION ANALYSIS: Flagging conflicting data points for human-in-the-loop review.
     `;
 
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("forge-analysis", {
       model: "gemini-2.0-flash-exp",
       contents: `Perform a high-level intelligence analysis for the scenario "${scenario}" targeting "${target}".
       If the scenario is not provided, automatically generate 3-5 relevant scenarios based on the investigation area.
@@ -1136,7 +1147,7 @@ app.post("/api/forge/analyze", async (req, res) => {
       }
     });
 
-    res.json(JSON.parse(response.text));
+    res.json(JSON.parse(llmCall.response.text));
   } catch (error: any) {
     console.error("Forge Analysis Error:", error);
     res.status(500).json({ error: error.message });
@@ -1149,9 +1160,10 @@ app.post("/api/analysis/combinatorial", async (req, res) => {
   
   if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Missing API Key" });
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
+    const llmCall = await callTrackedGemini("combinatorial-analysis", {
       model: "gemini-2.0-flash-exp",
       contents: `Perform a COMBINATORIAL ANALYSIS for target "${target}" using the following entities: ${JSON.stringify(entities)}.
       
@@ -1177,11 +1189,10 @@ app.post("/api/analysis/combinatorial", async (req, res) => {
         ]
       }`,
       config: { responseMimeType: "application/json" }
-    });
+    }, transactionId, { target, entities });
 
-    const result = JSON.parse(response.text);
-    await traceAgentAction("combinatorial_analysis", { target }, result);
-    res.json(result);
+    const result = JSON.parse(llmCall.response.text);
+    res.json({ ...result, lineage: llmCall.lineage });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1245,14 +1256,12 @@ app.post("/api/org/profile", async (req, res) => {
   (async () => {
     try {
       if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       // Stage 1: Recon & Extraction
       newJob.status = 'extraction';
       newJob.progress = 30;
       newJob.current_stage = 'Data Extraction';
       
-      const extractionResponse = await ai.models.generateContent({
+      const extractionCall = await callTrackedGemini("org-profile-extraction", {
         model: "gemini-2.0-flash-exp",
         contents: `Search the web and analyze the organization "${orgName}". 
         Extract the following:
@@ -1273,16 +1282,17 @@ app.post("/api/org/profile", async (req, res) => {
           "nature": "..."
         }`,
         config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" }
-      });
+      }, jobId, { orgName, stage: 'extraction' });
       
-      const extracted = JSON.parse(extractionResponse.text);
+      const extracted = JSON.parse(extractionCall.response.text);
+      const extractionLineage = extractionCall.lineage;
       
       // Stage 2: Synthesis & Strategic Alignment
       newJob.status = 'synthesis';
       newJob.progress = 60;
       newJob.current_stage = 'Strategic Synthesis';
       
-      const synthesisResponse = await ai.models.generateContent({
+      const synthesisCall = await callTrackedGemini("org-profile-synthesis", {
         model: "gemini-2.0-flash-exp",
         contents: `Based on the following information about "${orgName}":
         ${JSON.stringify(extracted)}
@@ -1301,7 +1311,7 @@ app.post("/api/org/profile", async (req, res) => {
           "dynamic_system_prompt": "..."
         }`,
         config: { responseMimeType: "application/json" }
-      });
+      }, jobId, { orgName, objective, stage: 'synthesis' });
       
       const synthesized = JSON.parse(synthesisResponse.text);
       
@@ -1393,17 +1403,20 @@ app.post("/api/ingestion/advanced", async (req, res) => {
   
   if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "Missing API Key" });
 
+  const transactionId = getTransactionIdFromRequest(req);
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const targets = query.split(',').map((t: string) => t.trim()).filter(Boolean);
     const allResults: any[] = [];
     const jobIds: string[] = [];
+    const lineageTrail: LineageInfo[] = [];
 
     for (const target of targets) {
+      const iterationTxn = `${transactionId}-${target}`;
       // Prioritize News & OSINT sources for initial profile
       const prioritizedSources = ["News", "Web", "OSINT_RECON", ...sources.filter((s: string) => !["News", "Web"].includes(s))];
       
-      const response = await ai.models.generateContent({
+      const llmCall = await callTrackedGemini("advanced-ingestion", {
         model: "gemini-2.0-flash-exp",
         contents: `Perform a RECURSIVE OSINT ingestion for target: "${target}" using prioritized sources: ${prioritizedSources.join(', ')}.
         
@@ -1426,14 +1439,13 @@ app.post("/api/ingestion/advanced", async (req, res) => {
         
         Return an array of these objects.`,
         config: { responseMimeType: "application/json" }
-      });
+      }, iterationTxn, { target, sources: prioritizedSources });
 
-      const results = JSON.parse(response.text);
+      const results = JSON.parse(llmCall.response.text);
+      lineageTrail.push(llmCall.lineage);
       const jobId = `job-${Math.random().toString(36).substr(2, 9)}`;
       jobIds.push(jobId);
       
-      await traceAgentAction("advanced_ingestion", { target, sources: prioritizedSources }, { results_count: results.length });
-
       // Save to database (requires userId from auth)
       if (req.user) {
         await searchHistoryRepository.create({
@@ -1451,7 +1463,8 @@ app.post("/api/ingestion/advanced", async (req, res) => {
     res.json({
       job_ids: jobIds,
       status: 'complete',
-      data: allResults
+      data: allResults,
+      lineage: lineageTrail
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -88,32 +88,37 @@ export async function callGeminiWithTracing(
     // Log to Langsmith
     const runName = `gemini_${options?.investigationUUID || 'standalone'}`;
 
-    // Create Langsmith run
-    await langsmithClient.createRun({
-      name: runName,
-      run_type: 'llm',
-      inputs: {
-        prompt,
-        model,
-        temperature: options?.temperature,
-        maxTokens: options?.maxTokens
-      },
-      metadata: {
-        invocation_id: invocationId,
-        invocation_hash: invocationHash,
-        user_id: userId,
-        investigation_uuid: options?.investigationUUID,
-        timestamp: new Date().toISOString()
-      }
-    });
+    // Log to Langsmith (best-effort, doesn't block on error)
+    try {
+      await langsmithClient.createRun({
+        name: runName,
+        run_type: 'llm',
+        inputs: {
+          prompt,
+          model,
+          temperature: options?.temperature,
+          maxTokens: options?.maxTokens,
+          invocation_id: invocationId,
+          invocation_hash: invocationHash,
+          user_id: userId,
+          investigation_uuid: options?.investigationUUID
+        }
+      } as any);
+    } catch (langsmithError) {
+      console.warn('[Langsmith Error]', langsmithError);
+      // Continue regardless of Langsmith failures
+    }
 
     // Call Gemini API
-    const response = await ai.models.generateContent({
+    const generateContentParams = {
       model,
       config,
-      contents: prompt,
-      tools: options?.tools
-    });
+      contents: prompt
+    } as any;
+    if (options?.tools) {
+      generateContentParams.tools = options.tools;
+    }
+    const response = await ai.models.generateContent(generateContentParams);
 
     const duration = Date.now() - startTime;
     const content = response.text;

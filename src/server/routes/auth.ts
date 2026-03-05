@@ -37,10 +37,10 @@ router.post('/login', authLimiter, validateBody(loginSchema), async (req: Reques
  * POST /auth/register - New user registration
  */
 router.post('/register', authLimiter, validateBody(registerSchema), async (req: Request, res: Response) => {
-  const { email, password, fullName } = req.body;
+  const { email, password } = req.body;
 
   try {
-    const user = await registerUser(email, password, fullName);
+    const { user } = await registerUser(email, password);
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -64,10 +64,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req: 
  */
 router.post('/logout', async (req: Request, res: Response) => {
   try {
-    const token = req.headers.authorization?.substring(7);
-    if (token) {
-      await signOutUser(token);
-    }
+    await signOutUser();
 
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (error: any) {

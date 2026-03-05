@@ -6,8 +6,9 @@
  */
 
 import { toolSelector, type ToolSelectionRequest } from './toolSelector';
-import { quickOSINTLookup, aggregateOSINTData, type OSINTResult } from './osintAggregator';
-import type { IntelligenceEvent } from '../../types/intelligence';
+import { quickOSINTLookup, type OSINTResult } from './osintAggregator';
+import { standardiseAndDeduplicate } from './standardiseAndDeduplicate';
+import type { IntelligenceEvent } from '../../contracts/intelligence';
 
 export interface IntelligenceGatheringRequest {
   /** Target identifier */
@@ -70,14 +71,14 @@ export class IntelligenceOrchestrator {
     const results = await this.executeTools(request.target, tools);
 
     // Step 3: Extract IntelligenceEvents and track errors
-    const events: IntelligenceEvent[] = [];
+    const rawEvents: IntelligenceEvent[] = [];
     const errors: Array<{ tool: string; error: string }> = [];
     let successfulTools = 0;
     let failedTools = 0;
 
     for (const result of results) {
       if (result.success && result.event) {
-        events.push(result.event);
+        rawEvents.push(result.event);
         successfulTools++;
       } else {
         errors.push({
@@ -88,7 +89,11 @@ export class IntelligenceOrchestrator {
       }
     }
 
-    // Step 4: Calculate aggregate statistics
+    // Step 3b: Standardise & deduplicate (one canonical ID per entity; merge name variants)
+    const events =
+      rawEvents.length > 0 ? standardiseAndDeduplicate(rawEvents) : rawEvents;
+
+    // Step 4: Calculate aggregate statistics from consolidated result
     const totalEntities = events.reduce((sum, e) => sum + e.entities.length, 0);
     const totalObservations = events.reduce((sum, e) => sum + e.observations.length, 0);
     const totalRelationships = events.reduce((sum, e) => sum + e.relationships.length, 0);

@@ -1,40 +1,32 @@
 ---
-name: Global Graph
-description: Restricts code modification scope to the global-graph module only
-globs: ["**/*"]
+name: Global Graph Write Scope
+description: Only permit code modifications within the /global-graph directory.
+globs: ["global-graph/**/*"]
 alwaysApply: true
 ---
 
-# Global Graph Write Scope Rule
+# Global Graph Write Scope Policy
 
-## Critical Constraint
+**You MUST NOT modify any code outside of `/global-graph`.**
 
-Agents must NOT modify code outside:
+## Permitted changes within `/global-graph`:
+- Graph schema
+- Graph builder
+- Graph queries
+- Graph indexing
+- Graph retrieval logic
 
+## Strictly PROHIBITED:
+- Ingestion pipeline modifications
+- Backend architecture redesigns
+- Frontend code changes
+- Infrastructure/configuration changes
 
-/global-graph
+---
 
+**If you need to make changes outside `/global-graph`:**
 
-Allowed changes:
+1. STOP immediately.
+2. Request explicit human approval.
 
-- graph schema
-- graph builder
-- graph queries
-- graph indexing
-- graph retrieval logic
-
-Disallowed:
-
-- ingestion pipeline changes
-- backend service redesign
-- frontend changes
-- infrastructure changes
-
-If changes outside `/global-graph` are required:
-
-
-STOP
-REQUEST HUMAN APPROVAL
-
-
-This rule protects the stability of the main system.
+This rule safeguards the integrity and stability of the overall system.

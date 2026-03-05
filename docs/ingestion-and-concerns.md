@@ -54,9 +54,9 @@ Two UIs define the pipeline; new work should **respect and enhance** these steps
 Fetch (public source) → Ingest → Normalize → Enrich → Extract (entities) → Correlate (strategic correlation) → OSINT (tool enrichment) → Graph update → Report.
 
 **Unified sequence** (support both and future features):  
-Fetch/Source → **Ingest** → **Normalize** → **Enrich** → Extract (entities) → Clustering (optional) → Correlate (optional) → OSINT tool enrichment (optional) → LLM analysis (optional) → Graph update → Report → Fingerprint (optional) → Audit (optional).
+Fetch/Source → **Ingest** → **Normalize** → **Standardise & Deduplicate** → **Enrich** → Extract (entities) → Clustering (optional) → Correlate (optional) → OSINT tool enrichment (optional) → LLM analysis (optional) → Graph update → Report → Fingerprint (optional) → Audit (optional).
 
-Core data-quality chain for ingested data from public APIs: **Ingest → Normalize → Enrich**. Downstream steps consume the normalized/enriched output. Mocks can be replaced incrementally with real backend implementations.
+Core data-quality chain for ingested data from public APIs: **Ingest → Normalize → Standardise & Deduplicate → Enrich**. The Standardise & Deduplicate step assigns one canonical unique ID per entity, normalises names (handles, display names), and merges duplicates using content-aware and fuzzy matching. Implemented in `src/server/services/standardiseAndDeduplicate.ts` and invoked by the intelligence orchestrator. Downstream steps consume the normalized/deduplicated output. Mocks can be replaced incrementally with real backend implementations.
 
 ## Schemas and contracts (smooth processing from public APIs)
 
@@ -80,10 +80,11 @@ Existing contracts ensure ingested data from public OSINT APIs flows into a sing
 
 ## Core pipeline and where existing pieces fit
 
-**Core chain:** Ingest → Normalize → Enrich.
+**Core chain:** Ingest → Normalize → Standardise & Deduplicate → Enrich.
 
 - **Ingest:** Accept raw payload (e.g. from OSINT tools, Gemini fetch, or skill output); produce a raw event conforming to `IngestionEvent`. For "advanced ingestion" and skills, add a normalizer for Gemini/skill output or a generic ingest step that wraps JSON for normalizers.
 - **Normalize:** Run through `NormalizerRegistry` (or a generic normalizer for non-tool payloads) and produce `IntelligenceEvent`. Pipeline step contract: `LensNormalizationResult` / `NormalizedEvent`.
+- **Standardise & Deduplicate:** Take `IntelligenceEvent[]` from multiple tools; assign one canonical unique ID per entity; normalise names (handles, display names, domains, IPs); merge entities that refer to the same real-world thing (content-aware and fuzzy name matching); deduplicate observations and relationships. Output: consolidated `IntelligenceEvent[]` (single merged event in practice). Part of intelligence gathering (orchestrator).
 - **Enrich:** Take `IntelligenceEvent`; add entity resolution, risk scoring, or link suggestions. Output remains canonical. Pipeline step contract: `LensEnrichmentResult` and related types.
 
 **Downstream steps** (already in UIs; enhance with real backend when adding features): Extract → Clustering → Correlate → OSINT tool enrichment → LLM analysis → Graph update → Report → Fingerprint → Audit. Each has or should have a corresponding contract in `src/contracts/portal.ts`.

@@ -98,4 +98,5 @@ export { VirusTotalNormalizer } from './virusTotalNormalizer';
 export { AlienVaultNormalizer } from './alienVaultNormalizer';
 export { TwitterNormalizer } from './twitterNormalizer';
 export { RedditNormalizer } from './redditNormalizer';
-export { BaseNormalizer, AbstractNormalizer } from './base';
+export { AbstractNormalizer } from './base';
+export type { BaseNormalizer } from './base';

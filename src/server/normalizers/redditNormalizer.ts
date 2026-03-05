@@ -3,7 +3,7 @@
  */
 
 import { AbstractNormalizer } from './base';
-import type { IntelligenceEvent, EntityReference, Observation } from '../../types/intelligence';
+import type { IntelligenceEvent, EntityReference, Observation } from '../../contracts/intelligence';
 
 export interface RedditUserData {
   name: string;

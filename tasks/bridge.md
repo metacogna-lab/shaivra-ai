@@ -64,6 +64,14 @@ None yet.
 
 **Reference:** [docs/ingestion-and-concerns.md](../docs/ingestion-and-concerns.md) — four concerns, full pipeline steps, schemas/contracts for public API data (IntelligenceEvent, normalizers, OSINTResult, `src/contracts/portal.ts`, Zod), core pipeline and where advanced ingestion / normalizers / graphRepository fit, integration points for frontend, Memgraph, agent network, and skills.
 
+## Audit (Full-Stack: Frontend, Backend, Schemas, Tool Data)
+
+**Date:** 2026-03-05. Read-only audit of API routes, frontend calls, request/response contracts, pipeline handoffs, and LLM/tool payload scoping. No code changes.
+
+**Findings:** [tasks/audit-20260305-180000.md](audit-20260305-180000.md)
+
+**Summary:** Many POST routes lack validateBody (report, summarize, ingestion/advanced, agent/investigate, forge/analyze, etc.). Body/schema mismatches: summarize uses `target` vs schema `domain`; investigation uses `sector`/`focus` vs schema `goal`; forge uses `target`, `lensData`, `globalGraphData` not in schema. Response envelope `{ data, meta }` not consistently returned where FE expects `meta.trace_id` (Lens, PipelineMonitor, AdvancedRecon). Advanced ingestion does not produce IntelligenceEvent; OSINT aggregate + normalizers are contract-compliant. runAgentNetwork truncates to 2K chars; report/summarize size refinements exist in schema but are not applied. Prioritized remediation: P0 add validateBody to report, ingestion/advanced, agent/investigate; P1 align summarize/forge/org profile + fingerprint query validation; P2 response envelopes, initphase docs for graph/master and trends.
+
 ## Completed Milestones
 
 - ✅ **Mintlify skill + MCP:** Skill installed via `npx skills add https://mintlify.com/docs --yes --global` (to `~/.agents/skills/mintlify`, Cursor + others). Project MCP at `.cursor/mcp.json` with `https://mintlify.com/docs/mcp`. Restart Cursor to load MCP.

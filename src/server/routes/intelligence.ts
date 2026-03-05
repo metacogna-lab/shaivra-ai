@@ -22,9 +22,9 @@ router.post('/search', authenticate, aiLimiter, validateBody(searchSchema), asyn
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash-exp',
-      tools: [{ googleSearch: {} }],
-      contents: query
-    });
+      contents: query,
+      tools: [{ googleSearch: {} }]
+    } as any);
 
     const text = response.text;
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
@@ -63,7 +63,7 @@ router.post('/search', authenticate, aiLimiter, validateBody(searchSchema), asyn
 /**
  * POST /intelligence/summarize - Summarize OSINT data
  */
-router.post('/summarize', authenticate, aiLimiter, validateBody({ type: 'object' }), async (req: Request, res: Response) => {
+router.post('/summarize', authenticate, aiLimiter, validateBody(reportSchema), async (req: Request, res: Response) => {
   const { data, target } = req.body;
   const invocationId = crypto.randomBytes(16).toString('hex');
 

@@ -47,6 +47,12 @@ import { investigationRepository } from "./src/server/repositories/investigation
 import { auditLogRepository } from "./src/server/repositories/auditLogRepository";
 import { graphRepository } from "./src/server/repositories/graphRepository";
 
+// OSINT Services
+import { aggregateOSINTData, quickOSINTLookup } from "./src/server/services/osintAggregator";
+import { searchShodan, getShodanHost } from "./src/server/integrations/shodan";
+import { getAlienVaultGeneral } from "./src/server/integrations/alienvault";
+import { getVirusTotalReport } from "./src/server/integrations/virustotal";
+
 dotenv.config();
 
 const app = express();
@@ -199,61 +205,108 @@ app.post("/api/search",
   }
 });
 
-// 2. OSINT: Shodan (Requires SHODAN_API_KEY)
-app.get("/api/osint/shodan", async (req, res) => {
-  const { query } = req.query;
-  const apiKey = process.env.SHODAN_API_KEY;
-
-  if (!apiKey) {
-    return res.status(400).json({ error: "SHODAN_API_KEY is not configured." });
-  }
+// 2. OSINT: Shodan (with retry logic and caching)
+app.get("/api/osint/shodan", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, type = 'search' } = req.query;
 
   try {
-    const response = await fetch(`https://api.shodan.io/shodan/host/search?key=${apiKey}&query=${query}`);
-    const data = await response.json();
+    let data;
+    if (type === 'host') {
+      data = await getShodanHost(query as string);
+    } else {
+      data = await searchShodan(query as string);
+    }
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_query',
+      resource: 'shodan',
+      details: { query, type },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
     res.json(data);
   } catch (error: any) {
+    console.error('[Shodan Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 3. OSINT: AlienVault OTX (Requires ALIENVAULT_API_KEY)
-app.get("/api/osint/alienvault", async (req, res) => {
+// 3. OSINT: AlienVault OTX (with retry logic and caching)
+app.get("/api/osint/alienvault", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'domain' } = req.query;
-  const apiKey = process.env.ALIENVAULT_API_KEY;
-
-  if (!apiKey) {
-    return res.status(400).json({ error: "ALIENVAULT_API_KEY is not configured." });
-  }
 
   try {
-    // Example: https://otx.alienvault.com/api/v1/indicators/domain/google.com/general
-    const response = await fetch(`https://otx.alienvault.com/api/v1/indicators/${type}/${query}/general`, {
-      headers: { 'X-OTX-API-KEY': apiKey }
+    const data = await getAlienVaultGeneral(query as string, type as any);
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_query',
+      resource: 'alienvault',
+      details: { query, type },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
     });
-    const data = await response.json();
+
     res.json(data);
   } catch (error: any) {
+    console.error('[AlienVault Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// 4. OSINT: VirusTotal (Requires VIRUSTOTAL_API_KEY)
-app.get("/api/osint/virustotal", async (req, res) => {
+// 4. OSINT: VirusTotal (with retry logic and caching)
+app.get("/api/osint/virustotal", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
   const { query, type = 'domain' } = req.query;
-  const apiKey = process.env.VIRUSTOTAL_API_KEY;
-
-  if (!apiKey) {
-    return res.status(400).json({ error: "VIRUSTOTAL_API_KEY is not configured." });
-  }
 
   try {
-    const response = await fetch(`https://www.virustotal.com/api/v3/${type}s/${query}`, {
-      headers: { 'x-apikey': apiKey }
+    const data = await getVirusTotalReport(query as string, type as any);
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_query',
+      resource: 'virustotal',
+      details: { query, type },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
     });
-    const data = await response.json();
+
     res.json(data);
   } catch (error: any) {
+    console.error('[VirusTotal Endpoint]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4b. OSINT: Aggregated Report (queries all sources in parallel)
+app.get("/api/osint/aggregate", authenticate, searchLimiter, validateQuery(osintQuerySchema), async (req, res) => {
+  const { query, type = 'domain' } = req.query;
+
+  try {
+    const report = await aggregateOSINTData(query as string, type as any);
+
+    // Log to audit trail
+    await auditLogRepository.create({
+      userId: req.user!.userId,
+      action: 'osint_aggregate',
+      resource: 'all',
+      details: {
+        query,
+        type,
+        sources: report.results.map(r => r.source),
+        threat_level: report.summary.threat_level
+      },
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json(report);
+  } catch (error: any) {
+    console.error('[OSINT Aggregate Endpoint]', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1015,15 +1068,6 @@ app.post("/api/ingestion/advanced", async (req, res) => {
           userId: req.user.userId
         });
       }
-
-      const historyEntry = {
-        id: `h-${Date.now()}`,
-        query: target,
-        timestamp: new Date().toISOString(),
-        project_id: projectId,
-        results_count: results.length,
-        job_id: jobId
-      });
 
       allResults.push(...results.map((r: any) => ({ ...r, target_ref: target })));
     }
